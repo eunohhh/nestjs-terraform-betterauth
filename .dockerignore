@@ -1,0 +1,40 @@
+# Dependencies
+node_modules
+backend/node_modules
+
+# Build output
+backend/dist
+backend/coverage
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Environment
+.env
+.env.*
+backend/.env
+backend/.env.*
+# But keep .env.example
+!.env.example
+!backend/.env.example
+
+# Terraform
+terraform/
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Scripts (not needed in image)
+scripts/
+
+# Misc
+*.md
+*.log
+.DS_Store

@@ -1,0 +1,20 @@
+{
+  "name": "eunsun-family-backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --dir backend start:dev",
+    "build": "pnpm --dir backend build",
+    "start": "pnpm --dir backend start",
+    "start:prod": "pnpm --dir backend start:prod",
+    "lint": "pnpm --dir backend lint",
+    "check": "pnpm --dir backend check",
+    "test": "pnpm --dir backend test",
+    "prisma:generate": "pnpm --dir backend prisma:generate",
+    "prisma:migrate": "pnpm --dir backend prisma:migrate",
+    "prisma:studio": "pnpm --dir backend prisma:studio",
+    "build-ecs": "./scripts/build.sh",
+    "deploy-ecs": "./scripts/deploy.sh",
+    "deploy": "pnpm build-ecs && pnpm deploy-ecs"
+  }
+}
