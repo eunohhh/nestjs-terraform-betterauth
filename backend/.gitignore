@@ -1,0 +1,10 @@
+# Nest.js compiled output
+/dist
+/build
+
+# Dependencies
+/node_modules
+
+# Tests
+/coverage
+/.nyc_output
