@@ -8,3 +8,12 @@
 # Tests
 /coverage
 /.nyc_output
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Prisma
+prisma/migrations/.migration_lock.toml
+/src/generated
