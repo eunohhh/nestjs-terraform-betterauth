@@ -44,5 +44,13 @@ locals {
       name      = "GOOGLE_CLIENT_SECRET"
       valueFrom = "${local.secret_arn}:GOOGLE_CLIENT_SECRET::"
     },
+    {
+      name      = "FRONTEND_URL"
+      valueFrom = "${local.secret_arn}:FRONTEND_URL::"
+    },
+    {
+      name      = "APP_URL"
+      valueFrom = "${local.secret_arn}:APP_URL::"
+    },
   ]
 }
