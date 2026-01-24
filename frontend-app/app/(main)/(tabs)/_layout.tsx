@@ -1,5 +1,7 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useNavigation } from 'expo-router';
 import React from 'react';
+import { TouchableOpacity } from 'react-native';
+import { DrawerActions } from '@react-navigation/native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -8,13 +10,23 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const navigation = useNavigation();
+
+  const toggleDrawer = () => {
+    navigation.dispatch(DrawerActions.toggleDrawer());
+  };
 
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
+        headerShown: true,
         tabBarButton: HapticTab,
+        headerLeft: () => (
+            <TouchableOpacity onPress={toggleDrawer} style={{ marginLeft: 16 }}>
+                <IconSymbol name="line.3.horizontal" size={24} color={Colors[colorScheme ?? 'light'].text} />
+            </TouchableOpacity>
+        ),
       }}>
       <Tabs.Screen
         name="index"

@@ -27,6 +27,7 @@ type AuthContextValue = {
   status: AuthStatus;
   accessToken: string | null;
   user: AppUser | null;
+  isLoading: boolean;
   startLogin: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   logout: () => Promise<void>;
@@ -41,6 +42,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [status, setStatus] = useState<AuthStatus>({ tone: 'neutral', label: 'idle' });
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<AppUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const lastCodeRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -149,12 +151,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const stored = await getStoredToken();
         if (!stored || !isActive) {
           setStatus({ tone: 'neutral', label: 'idle' });
+          setIsLoading(false);
           return;
         }
         setAccessToken(stored);
         await refreshProfile(stored);
       } catch {
         setStatus({ tone: 'neutral', label: 'idle' });
+      } finally {
+        if (isActive) {
+            setIsLoading(false);
+        }
       }
     };
 
@@ -198,11 +205,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       status,
       accessToken,
       user,
+      isLoading,
       startLogin,
       refreshProfile: () => refreshProfile(),
       logout,
     }),
-    [apiBaseUrl, redirectUrl, status, accessToken, user, startLogin, refreshProfile, logout],
+    [apiBaseUrl, redirectUrl, status, accessToken, user, isLoading, startLogin, refreshProfile, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
