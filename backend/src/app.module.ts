@@ -4,6 +4,9 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AppAuthController } from './auth/app-auth.controller';
+import { AppAuthService } from './auth/app-auth.service';
+import { AppJwtGuard } from './auth/app-jwt.guard';
 import { auth } from './auth/auth';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -15,7 +18,12 @@ import { PrismaModule } from './prisma/prisma.module';
       throttlers: [{ ttl: 60_000, limit: 60 }],
     }),
   ],
-  controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  controllers: [AppController, AppAuthController],
+  providers: [
+    AppService,
+    AppAuthService,
+    AppJwtGuard,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}
