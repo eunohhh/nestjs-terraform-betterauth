@@ -42,6 +42,10 @@ export const auth = betterAuth({
     },
     defaultCookieAttributes: {
       secure: process.env.NODE_ENV === 'production',
+      domain:
+        process.env.NODE_ENV === 'production'
+          ? `.${new URL(process.env.FRONTEND_URL ?? '').hostname.replace('api.', '')}`
+          : undefined,
       httpOnly: true,
       sameSite: 'lax',
       path: '/',
