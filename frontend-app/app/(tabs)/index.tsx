@@ -5,22 +5,23 @@ import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useAuth } from '@/providers/auth-provider';
 import { Link } from 'expo-router';
 
 export default function HomeScreen() {
+  const { status, user, accessToken } = useAuth();
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
       headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
+        <Image source={require('@/assets/images/partial-react-logo.png')} style={styles.reactLogo} />
       }>
       <ThemedView style={styles.titleContainer}>
         <ThemedText type="title">Welcome!</ThemedText>
         <HelloWave />
       </ThemedView>
+
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Step 1: Try it</ThemedText>
         <ThemedText>
@@ -36,6 +37,23 @@ export default function HomeScreen() {
           to open developer tools.
         </ThemedText>
       </ThemedView>
+
+      <ThemedView style={styles.stepContainer}>
+        <ThemedText type="subtitle">Account</ThemedText>
+        <ThemedText>{`status: ${status.label}`}</ThemedText>
+        {user ? (
+          <ThemedText>{`user: ${user.name} (${user.email})`}</ThemedText>
+        ) : (
+          <ThemedText>로그인이 필요합니다.</ThemedText>
+        )}
+        {accessToken ? (
+          <ThemedText numberOfLines={1}>{`token: ${accessToken.slice(0, 10)}…`}</ThemedText>
+        ) : null}
+        <Link href="/login">
+          <ThemedText type="defaultSemiBold">로그인 화면으로 이동</ThemedText>
+        </Link>
+      </ThemedView>
+
       <ThemedView style={styles.stepContainer}>
         <Link href="/modal">
           <Link.Trigger>
@@ -64,6 +82,7 @@ export default function HomeScreen() {
           {`Tap the Explore tab to learn more about what's included in this starter app.`}
         </ThemedText>
       </ThemedView>
+
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
         <ThemedText>

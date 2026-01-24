@@ -62,7 +62,54 @@ export class AppAuthController {
     return response.redirect(this.buildDeepLink({ code, expiresAt: expiresAt.toISOString() }));
   }
 
+  @Get('login/google')
+  @AllowAnonymous()
+  async loginGoogle(@Req() request: Request, @Res() response: Response) {
+    const baseUrl = this.getBaseUrl(request);
+    const callbackURL = `${baseUrl}/auth/app/callback`;
+    const signInUrl = `${baseUrl}/api/auth/sign-in/social`;
+
+    const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Signing in...</title>
+  </head>
+  <body>
+    <p>Signing in…</p>
+    <script>
+      (function () {
+        fetch(${JSON.stringify(signInUrl)}, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            provider: 'google',
+            callbackURL: ${JSON.stringify(callbackURL)}
+          })
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            if (data && data.url) {
+              window.location.href = data.url;
+              return;
+            }
+            document.body.innerText = 'Failed to start login.';
+          })
+          .catch(function () {
+            document.body.innerText = 'Failed to start login.';
+          });
+      })();
+    </script>
+  </body>
+</html>`;
+
+    return response.status(200).type('text/html').send(html);
+  }
+
   @Get('me')
+  @AllowAnonymous()
   @UseGuards(AppJwtGuard)
   async me(@Req() request: AppAuthRequest) {
     if (!request.appUserId) {
@@ -77,13 +124,24 @@ export class AppAuthController {
     return user;
   }
 
+  private getBaseUrl(request: Request) {
+    if (process.env.BETTER_AUTH_URL) {
+      return process.env.BETTER_AUTH_URL;
+    }
+    const protocol =
+      (request.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0] ||
+      request.protocol;
+    return `${protocol}://${request.get('host')}`;
+  }
+
   private buildDeepLink(params: Record<string, string>) {
     const base = process.env.APP_URL;
     if (!base) {
       throw new InternalServerErrorException('APP_URL is not set');
     }
     const baseUrl = new URL(base);
-    baseUrl.pathname = '/auth/callback';
+    const basePath = baseUrl.pathname === '/' ? '' : baseUrl.pathname.replace(/\/$/, '');
+    baseUrl.pathname = `${basePath}/auth/callback`;
     try {
       for (const [key, value] of Object.entries(params)) {
         baseUrl.searchParams.set(key, value);

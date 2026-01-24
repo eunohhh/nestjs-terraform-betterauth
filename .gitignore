@@ -49,5 +49,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 .pnpm-store
 /node_modules
+node_modules/
+node_modules/*
 
 /docs/private
