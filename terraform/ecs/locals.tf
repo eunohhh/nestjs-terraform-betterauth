@@ -33,6 +33,10 @@ locals {
       valueFrom = "${local.secret_arn}:BETTER_AUTH_URL::"
     },
     {
+      name      = "APP_JWT_SECRET"
+      valueFrom = "${local.secret_arn}:APP_JWT_SECRET::"
+    },
+    {
       name      = "DATABASE_URL"
       valueFrom = "${local.secret_arn}:DATABASE_URL::"
     },
