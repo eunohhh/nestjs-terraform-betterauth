@@ -2,13 +2,15 @@ import {
   BadRequestException,
   Controller,
   Get,
+  InternalServerErrorException,
   Post,
   Req,
+  Res,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { AppAuthService } from './app-auth.service';
 import { AppJwtGuard } from './app-jwt.guard';
 import { auth } from './auth';
@@ -45,6 +47,21 @@ export class AppAuthController {
     return this.appAuthService.createLoginCode(session.user.id);
   }
 
+  @Get('callback')
+  @AllowAnonymous()
+  async callback(@Req() request: Request, @Res() response: Response) {
+    const headers = this.toHeaders(request);
+    const session = await auth.api.getSession({ headers });
+
+    if (!session || !('user' in session) || !session.user?.id) {
+      return response.redirect(this.buildDeepLink({ error: 'not_logged_in' }));
+    }
+
+    const { code, expiresAt } = await this.appAuthService.createLoginCode(session.user.id);
+
+    return response.redirect(this.buildDeepLink({ code, expiresAt: expiresAt.toISOString() }));
+  }
+
   @Get('me')
   @UseGuards(AppJwtGuard)
   async me(@Req() request: AppAuthRequest) {
@@ -58,6 +75,23 @@ export class AppAuthController {
     }
 
     return user;
+  }
+
+  private buildDeepLink(params: Record<string, string>) {
+    const base = process.env.APP_DEEPLINK_CALLBACK_URL;
+    if (!base) {
+      throw new InternalServerErrorException('APP_DEEPLINK_CALLBACK_URL is not set');
+    }
+    try {
+      const url = new URL(base);
+      for (const [key, value] of Object.entries(params)) {
+        url.searchParams.set(key, value);
+      }
+      return url.toString();
+    } catch {
+      const search = new URLSearchParams(params).toString();
+      return search.length > 0 ? `${base}?${search}` : base;
+    }
   }
 
   private toHeaders(request: Request): Headers {
