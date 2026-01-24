@@ -18,6 +18,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  appLoginCodes AppLoginCode[]
 
   @@unique([email])
   @@map("user")
@@ -71,3 +72,15 @@ model Verification {
   @@map("verification")
 }
 
+model AppLoginCode {
+  code      String   @id @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("app_login_codes")
+}
