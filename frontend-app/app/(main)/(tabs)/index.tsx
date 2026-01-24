@@ -36,9 +36,9 @@ export default function MyInfoScreen() {
                 <ThemedText type="defaultSemiBold">Provider</ThemedText>
                 <ThemedText style={{ color: theme.icon }}>Google</ThemedText>
             </View>
-             <View style={[styles.separator, { backgroundColor: theme.icon, opacity: 0.2 }]} />
+            <View style={[styles.separator, { backgroundColor: theme.icon, opacity: 0.2 }]} />
 
-             <View style={styles.item}>
+            <View style={styles.item}>
                 <ThemedText type="defaultSemiBold">Role</ThemedText>
                 <ThemedText style={{ color: theme.icon }}>Member</ThemedText>
             </View>
