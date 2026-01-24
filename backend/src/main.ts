@@ -1,8 +1,9 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false, // Required for Better Auth
   });
 
@@ -10,7 +11,7 @@ async function bootstrap() {
   app.set('trust proxy', 1);
 
   app.enableCors({
-    origin: [process.env.FRONTEND_URL, process.env.APP_URL].filter(Boolean),
+    origin: [process.env.FRONTEND_URL ?? ''],
     credentials: true,
   });
 

@@ -48,9 +48,5 @@ locals {
       name      = "FRONTEND_URL"
       valueFrom = "${local.secret_arn}:FRONTEND_URL::"
     },
-    {
-      name      = "APP_URL"
-      valueFrom = "${local.secret_arn}:APP_URL::"
-    },
   ]
 }
