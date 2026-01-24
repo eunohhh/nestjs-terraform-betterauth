@@ -10,6 +10,8 @@
     "lint": "pnpm --dir backend lint",
     "check": "pnpm --dir backend check",
     "test": "pnpm --dir backend test",
+    "backend:dev": "pnpm --filter backend start:dev",
+    "app:start": "pnpm --filter frontend-app start",
     "prisma:generate": "pnpm --dir backend prisma:generate",
     "prisma:migrate": "pnpm --dir backend prisma:migrate",
     "prisma:studio": "pnpm --dir backend prisma:studio",
