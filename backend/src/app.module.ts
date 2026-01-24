@@ -15,7 +15,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     AuthModule.forRoot({ auth }),
     ThrottlerModule.forRoot({
-      throttlers: [{ ttl: 60_000, limit: 60 }],
+      throttlers: [{ ttl: 60_000, limit: 100 }],
     }),
   ],
   controllers: [AppController, AppAuthController],
