@@ -51,9 +51,11 @@ export const auth = betterAuth({
       path: '/',
     },
   },
-  trustedOrigins: [process.env.BETTER_AUTH_URL ?? '', process.env.FRONTEND_URL ?? ''].filter(
-    (origin): origin is string => !!origin,
-  ),
+  trustedOrigins: [
+    process.env.BETTER_AUTH_URL,
+    process.env.FRONTEND_URL,
+    process.env.APP_URL,
+  ].filter((origin): origin is string => !!origin),
 });
 
 export type Session = typeof auth.$Infer.Session;

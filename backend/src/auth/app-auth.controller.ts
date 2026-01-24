@@ -78,19 +78,20 @@ export class AppAuthController {
   }
 
   private buildDeepLink(params: Record<string, string>) {
-    const base = process.env.APP_DEEPLINK_CALLBACK_URL;
+    const base = process.env.APP_URL;
     if (!base) {
-      throw new InternalServerErrorException('APP_DEEPLINK_CALLBACK_URL is not set');
+      throw new InternalServerErrorException('APP_URL is not set');
     }
+    const baseUrl = new URL(base);
+    baseUrl.pathname = '/auth/callback';
     try {
-      const url = new URL(base);
       for (const [key, value] of Object.entries(params)) {
-        url.searchParams.set(key, value);
+        baseUrl.searchParams.set(key, value);
       }
-      return url.toString();
+      return baseUrl.toString();
     } catch {
       const search = new URLSearchParams(params).toString();
-      return search.length > 0 ? `${base}?${search}` : base;
+      return search.length > 0 ? `${baseUrl.toString()}?${search}` : baseUrl.toString();
     }
   }
 

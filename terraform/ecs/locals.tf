@@ -53,8 +53,8 @@ locals {
       valueFrom = "${local.secret_arn}:FRONTEND_URL::"
     },
     {
-      name      = "APP_DEEPLINK_CALLBACK_URL"
-      valueFrom = "${local.secret_arn}:APP_DEEPLINK_CALLBACK_URL::"
+      name      = "APP_URL"
+      valueFrom = "${local.secret_arn}:APP_URL::"
     },
   ]
 }
