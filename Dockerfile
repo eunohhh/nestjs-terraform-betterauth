@@ -6,17 +6,21 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy package files
-COPY backend/package.json backend/pnpm-lock.yaml ./
+# Copy workspace root files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Copy backend package.json
+COPY backend/package.json ./backend/
 
-# Copy source code
-COPY backend/ .
+# Install dependencies (workspace aware)
+RUN pnpm install --frozen-lockfile --filter backend
+
+# Copy backend source code
+COPY backend/ ./backend/
 
 # Generate Prisma client & build
 # Use dummy DATABASE_URL for prisma generate (only needs valid format, not actual connection)
+WORKDIR /app/backend
 ENV DATABASE_URL="postgresql://user:password@localhost:5432/dummy?schema=public"
 RUN pnpm build && \
     ls -la dist/src/ && \
@@ -34,15 +38,18 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nestjs
 
-# Copy package files
-COPY backend/package.json backend/pnpm-lock.yaml ./
+# Copy workspace root files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
+# Copy backend package.json
+COPY backend/package.json ./backend/
+
+# Install production dependencies only (workspace aware)
+RUN pnpm install --frozen-lockfile --prod --filter backend
 
 # Copy built application
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/src/generated ./src/generated
+COPY --from=builder /app/backend/dist ./dist
+COPY --from=builder /app/backend/src/generated ./src/generated
 
 # Set ownership
 RUN chown -R nestjs:nodejs /app
