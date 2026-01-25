@@ -41,6 +41,13 @@ export default function MainLayout() {
           title: 'Home',
         }}
       />
+      <Drawer.Screen
+        name="cat-sitting"
+        options={{
+          drawerLabel: '고양이 돌보미',
+          title: '고양이 돌보미',
+        }}
+      />
     </Drawer>
   );
 }

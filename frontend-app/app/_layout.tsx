@@ -5,6 +5,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/providers/auth-provider';
+import { SittingProvider } from '@/providers/sitting-provider';
 
 export const unstable_settings = {
   anchor: '(main)',
@@ -16,12 +17,14 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AuthProvider>
-        <Stack>
-          <Stack.Screen name="(main)" options={{ headerShown: false }} />
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        </Stack>
-        <StatusBar style="auto" />
+        <SittingProvider>
+          <Stack>
+            <Stack.Screen name="(main)" options={{ headerShown: false }} />
+            <Stack.Screen name="login" options={{ headerShown: false }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          </Stack>
+          <StatusBar style="auto" />
+        </SittingProvider>
       </AuthProvider>
     </ThemeProvider>
   );

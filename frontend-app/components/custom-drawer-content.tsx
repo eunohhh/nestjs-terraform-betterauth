@@ -32,9 +32,9 @@ export function CustomDrawerContent(props: any) {
                     onPress={() => setDropdownOpen(!dropdownOpen)}
                     activeOpacity={0.7}
                  >
-                    <Image 
-                        source={{ uri: user?.avatarUrl || 'https://via.placeholder.com/150' }} 
-                        style={styles.avatar} 
+                    <Image
+                        source={{ uri: user?.image || 'https://via.placeholder.com/150' }}
+                        style={styles.avatar}
                     />
                     <View style={styles.userInfo}>
                         <Text style={[styles.email, { color: theme.text }]} numberOfLines={1}>{user?.email || 'user@example.com'}</Text>
