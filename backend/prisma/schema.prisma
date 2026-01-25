@@ -1,31 +1,75 @@
+// schema.prisma (Prisma v7 / PostgreSQL)
+// - KST 처리: DB는 DateTime을 "UTC로 저장"하는 게 정석입니다.
+//   앱/서버에서 KST로 입력받아도 저장 시 UTC로 변환해서 넣고,
+//   조회 시 KST로 변환해서 보여주세요. (Postgres timestamptz + UTC 저장 권장)
+//
+//   Prisma DateTime은 Postgres의 timestamptz와 매핑됩니다(기본).
+//   따라서 reservationDate / careTime은 UTC로 저장하고, 프론트에서 KST로 렌더링하세요.
+
 datasource db {
   provider = "postgresql"
 }
 
 generator client {
-  provider = "prisma-client"
-  output = "../src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
   moduleFormat = "cjs"
 }
 
+enum SittingBookingStatus {
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum SittingPaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+}
+
+enum SittingAuditType {
+  BOOKING_CREATED
+  BOOKING_UPDATED
+  BOOKING_CANCELLED
+  BOOKING_COMPLETED
+  PAYMENT_STATUS_CHANGED
+  CARE_ADDED
+  CARE_UPDATED
+  CARE_DELETED
+  NOTE_UPDATED
+}
+
 model User {
-  id            String    @id @db.Uuid
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name          String
   email         String
-  emailVerified Boolean   @default(false)
+  emailVerified Boolean  @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  role          String   @default("user")
+
   sessions      Session[]
   accounts      Account[]
   appLoginCodes AppLoginCode[]
+
+  // Catsitting relations
+  sittingClients         SittingClient[]          @relation("SittingClientOwner")
+  sittingClientsCreated  SittingClient[]          @relation("SittingClientCreatedBy")
+  sittingClientsUpdated  SittingClient[]          @relation("SittingClientUpdatedBy")
+  sittingBookingsCreated SittingBooking[]         @relation("SittingBookingCreatedBy")
+  sittingBookingsUpdated SittingBooking[]         @relation("SittingBookingUpdatedBy")
+  sittingCaresCreated    SittingCare[]            @relation("SittingCareCreatedBy")
+  sittingCaresUpdated    SittingCare[]            @relation("SittingCareUpdatedBy")
+  sittingAuditLogs       SittingBookingAuditLog[] @relation("SittingAuditActor")
 
   @@unique([email])
   @@map("user")
 }
 
 model Session {
-  id        String   @id @db.Uuid
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   expiresAt DateTime
   token     String
   createdAt DateTime @default(now())
@@ -41,7 +85,7 @@ model Session {
 }
 
 model Account {
-  id                    String    @id @db.Uuid
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   accountId             String
   providerId            String
   userId                String    @db.Uuid
@@ -61,7 +105,7 @@ model Account {
 }
 
 model Verification {
-  id         String   @id @db.Uuid
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   identifier String
   value      String
   expiresAt  DateTime
@@ -73,14 +117,140 @@ model Verification {
 }
 
 model AppLoginCode {
-  code      String   @id @db.Uuid
-  userId    String   @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code      String    @id @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
   @@index([expiresAt])
   @@map("app_login_codes")
+}
+
+/**
+ * =========================
+ * Catsitting tables
+ * =========================
+ */
+
+model SittingClient {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  // "앱 범위" 확장 대비 (가족 공용 DB 쓰는 전제)
+  appId String @default("catsitter") @db.VarChar(32)
+
+  // owner(아내 계정). 지금은 1명만 쓰더라도, 확장 대비로 필수로 두는 게 좋습니다.
+  userId String @db.Uuid
+  user   User   @relation("SittingClientOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  clientName   String  @db.Text
+  catName      String  @db.Text
+  address      String  @db.Text
+  entryNote    String? @db.Text
+  requirements String? @db.Text
+  catPic       String? @db.Text // S3 public URL
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?  @db.Uuid
+  updatedById String?  @db.Uuid
+
+  // createdBy/updatedBy는 지금은 userId와 같겠지만, 나중에 ADMIN/SITTER 분리 대비
+  createdBy User? @relation("SittingClientCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User? @relation("SittingClientUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  bookings SittingBooking[]
+
+  @@index([appId, userId])
+  @@index([userId])
+  @@map("sitting_clients")
+}
+
+model SittingBooking {
+  id    String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  appId String @default("catsitter") @db.VarChar(32)
+
+  clientId String        @db.Uuid
+  client   SittingClient @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  // "예약 일시" (UTC 저장 권장)
+  reservationDate DateTime
+
+  // 기본은 client.catName을 복사해두는 스냅샷 느낌으로 권장(나중에 이름 바뀌어도 당시 기록 유지)
+  catName String @db.Text
+
+  bookingStatus SittingBookingStatus @default(CONFIRMED)
+
+  // 금액은 정수(원)로 저장 권장 (float/decimal 혼동 방지)
+  expectedAmount Int
+  amount         Int
+
+  paymentStatus SittingPaymentStatus @default(UNPAID)
+
+  // 스냅샷(예약 당시 기준)
+  addressSnapshot   String  @db.Text
+  entryNoteSnapshot String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String? @db.Uuid
+  updatedById String? @db.Uuid
+  createdBy   User?   @relation("SittingBookingCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?   @relation("SittingBookingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  cares     SittingCare[]
+  auditLogs SittingBookingAuditLog[]
+
+  @@index([appId, reservationDate])
+  @@index([clientId, reservationDate])
+  @@index([bookingStatus, reservationDate])
+  @@map("sitting_bookings")
+}
+
+model SittingCare {
+  id    String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  appId String @default("catsitter") @db.VarChar(32)
+
+  bookingId String         @db.Uuid
+  booking   SittingBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  // 방문 시각 (UTC 저장 권장)
+  careTime DateTime
+
+  note String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String? @db.Uuid
+  updatedById String? @db.Uuid
+  createdBy   User?   @relation("SittingCareCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?   @relation("SittingCareUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([bookingId, careTime])
+  @@index([appId, careTime])
+  @@map("sitting_cares")
+}
+
+model SittingBookingAuditLog {
+  id    String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  appId String @default("catsitter") @db.VarChar(32)
+
+  bookingId String         @db.Uuid
+  booking   SittingBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  type    SittingAuditType
+  payload Json? // 변경 전/후, 이유, 메타 정보 등
+
+  actorUserId String? @db.Uuid
+  actor       User?   @relation("SittingAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([bookingId, createdAt])
+  @@index([appId, createdAt])
+  @@map("sitting_booking_audit_logs")
 }
