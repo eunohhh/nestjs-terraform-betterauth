@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/lib/apis/api-client';
@@ -17,7 +17,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await authClient.signIn.social({
-        provider: "google",
+        provider: 'google',
         callbackURL: `${window.location.origin}/login`, // Redirect back to this frontend page
       });
       // Note: The actual redirect happens by the browser, so code below might not run immediately
@@ -29,7 +29,7 @@ export default function LoginPage() {
 
   // Check if we are already logged in (Better Auth session) and try to get App JWT
   // This effect runs when the page loads (e.g., after redirect back from Google)
-  const exchangeToken = async () => {
+  const exchangeToken = useCallback(async () => {
     try {
       const session = await authClient.getSession();
       if (session.data) {
@@ -45,14 +45,11 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
-  // Run exchange check on mount
-  // In a real app, you might want a more robust auth state management (e.g. Context)
-  // but for now, we check on load.
-  useState(() => {
+  useEffect(() => {
     exchangeToken();
-  });
+  }, [exchangeToken]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">

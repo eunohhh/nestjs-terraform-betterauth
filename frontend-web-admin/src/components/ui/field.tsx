@@ -8,15 +8,17 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 
 function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
+  const { ref, ...rest } = props as React.ComponentProps<"fieldset"> & { ref?: unknown }
   return (
     <fieldset
       data-slot="field-set"
+      ref={ref as React.Ref<HTMLFieldSetElement>}
       className={cn(
         "flex flex-col gap-6",
         "has-[>[data-slot=checkbox-group]]:gap-3 has-[>[data-slot=radio-group]]:gap-3",
         className
       )}
-      {...props}
+      {...rest}
     />
   )
 }
