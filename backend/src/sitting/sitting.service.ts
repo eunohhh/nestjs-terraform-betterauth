@@ -1,27 +1,119 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
-  PrismaClient,
   SittingAuditType,
   SittingBookingStatus,
   SittingPaymentStatus,
 } from '../generated/prisma/client';
 import { kstStringToUtcDate } from '../libs/common/kst';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateSittingBookingDto } from './dto/create-booking.dto';
 import { CreateSittingCareDto } from './dto/create-care.dto';
+import { CreateSittingClientDto } from './dto/create-client.dto';
+import { UpdateSittingBookingDto } from './dto/update-booking.dto';
+import { UpdateSittingCareDto } from './dto/update-care.dto';
+import { UpdateSittingClientDto } from './dto/update-client.dto';
 
 @Injectable()
 export class SittingService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async createBooking(params: {
-    userId: string;
-    appId?: string; // default "catsitter"
-    dto: CreateSittingBookingDto;
-  }) {
+  // ==================== CLIENT ====================
+
+  async createClient(params: { userId: string; dto: CreateSittingClientDto; appId?: string }) {
     const { userId, dto } = params;
     const appId = params.appId ?? 'catsitter';
 
-    // 1) client 조회 (권한/소유 체크)
+    return this.prisma.sittingClient.create({
+      data: {
+        appId,
+        userId,
+        clientName: dto.clientName,
+        catName: dto.catName,
+        address: dto.address,
+        entryNote: dto.entryNote ?? null,
+        requirements: dto.requirements ?? null,
+        catPic: dto.catPic ?? null,
+        createdById: userId,
+        updatedById: userId,
+      },
+    });
+  }
+
+  async getClient(params: { userId: string; clientId: string; appId?: string }) {
+    const { userId, clientId } = params;
+    const appId = params.appId ?? 'catsitter';
+
+    const client = await this.prisma.sittingClient.findFirst({
+      where: { id: clientId, appId },
+    });
+
+    if (!client) throw new NotFoundException('Client not found');
+    if (client.userId !== userId) throw new ForbiddenException('Not your client');
+
+    return client;
+  }
+
+  async getClients(params: { userId: string; appId?: string }) {
+    const { userId } = params;
+    const appId = params.appId ?? 'catsitter';
+
+    return this.prisma.sittingClient.findMany({
+      where: { userId, appId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async updateClient(params: {
+    userId: string;
+    clientId: string;
+    dto: UpdateSittingClientDto;
+    appId?: string;
+  }) {
+    const { userId, clientId, dto } = params;
+    const appId = params.appId ?? 'catsitter';
+
+    const client = await this.prisma.sittingClient.findFirst({
+      where: { id: clientId, appId },
+      select: { id: true, userId: true },
+    });
+
+    if (!client) throw new NotFoundException('Client not found');
+    if (client.userId !== userId) throw new ForbiddenException('Not your client');
+
+    return this.prisma.sittingClient.update({
+      where: { id: clientId },
+      data: {
+        ...dto,
+        updatedById: userId,
+      },
+    });
+  }
+
+  async deleteClient(params: { userId: string; clientId: string; appId?: string }) {
+    const { userId, clientId } = params;
+    const appId = params.appId ?? 'catsitter';
+
+    const client = await this.prisma.sittingClient.findFirst({
+      where: { id: clientId, appId },
+      select: { id: true, userId: true },
+    });
+
+    if (!client) throw new NotFoundException('Client not found');
+    if (client.userId !== userId) throw new ForbiddenException('Not your client');
+
+    await this.prisma.sittingClient.delete({
+      where: { id: clientId },
+    });
+
+    return { success: true };
+  }
+
+  // ==================== BOOKING ====================
+
+  async createBooking(params: { userId: string; appId?: string; dto: CreateSittingBookingDto }) {
+    const { userId, dto } = params;
+    const appId = params.appId ?? 'catsitter';
+
     const client = await this.prisma.sittingClient.findFirst({
       where: { id: dto.clientId, appId },
       select: {
@@ -34,20 +126,16 @@ export class SittingService {
     });
 
     if (!client) throw new NotFoundException('Client not found');
-    // 지금은 단일 사용자 툴이지만, 확장 대비로 소유 체크 추천
     if (client.userId !== userId) throw new ForbiddenException('Not your client');
 
-    // 2) KST -> UTC 변환
     const reservationDateUtc = kstStringToUtcDate(dto.reservationKst);
 
-    // 3) 스냅샷 자동 채우기 (override 우선)
     const catName = dto.catNameOverride ?? client.catName;
     const addressSnapshot = dto.addressSnapshotOverride ?? client.address;
     const entryNoteSnapshot = dto.entryNoteSnapshotOverride ?? client.entryNote ?? null;
 
-    // 4) 트랜잭션으로 booking + auditlog 생성
-    return this.prisma.$transaction(async (transaction) => {
-      const booking = await transaction.sittingBooking.create({
+    return this.prisma.$transaction(async (tx) => {
+      const booking = await tx.sittingBooking.create({
         data: {
           appId,
           clientId: client.id,
@@ -64,7 +152,7 @@ export class SittingService {
         },
       });
 
-      await transaction.sittingBookingAuditLog.create({
+      await tx.sittingBookingAuditLog.create({
         data: {
           appId,
           bookingId: booking.id,
@@ -86,11 +174,148 @@ export class SittingService {
     });
   }
 
+  async getBooking(params: { userId: string; bookingId: string; appId?: string }) {
+    const { userId, bookingId } = params;
+    const appId = params.appId ?? 'catsitter';
+
+    const booking = await this.prisma.sittingBooking.findFirst({
+      where: { id: bookingId, appId },
+      include: {
+        client: true,
+        cares: { orderBy: { careTime: 'asc' } },
+      },
+    });
+
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.client.userId !== userId) throw new ForbiddenException('Not your booking');
+
+    return booking;
+  }
+
+  async getBookings(params: {
+    userId: string;
+    appId?: string;
+    clientId?: string;
+    status?: SittingBookingStatus;
+  }) {
+    const { userId, clientId, status } = params;
+    const appId = params.appId ?? 'catsitter';
+
+    return this.prisma.sittingBooking.findMany({
+      where: {
+        appId,
+        client: { userId },
+        ...(clientId && { clientId }),
+        ...(status && { bookingStatus: status }),
+      },
+      include: {
+        client: { select: { id: true, clientName: true, catName: true } },
+        cares: { select: { id: true, careTime: true } },
+      },
+      orderBy: { reservationDate: 'desc' },
+    });
+  }
+
+  async updateBooking(params: {
+    userId: string;
+    bookingId: string;
+    dto: UpdateSittingBookingDto;
+    appId?: string;
+  }) {
+    const { userId, bookingId, dto } = params;
+    const appId = params.appId ?? 'catsitter';
+
+    const booking = await this.prisma.sittingBooking.findFirst({
+      where: { id: bookingId, appId },
+      include: { client: { select: { userId: true } } },
+    });
+
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.client.userId !== userId) throw new ForbiddenException('Not your booking');
+
+    const updateData: any = { updatedById: userId };
+
+    if (dto.reservationKst) {
+      updateData.reservationDate = kstStringToUtcDate(dto.reservationKst);
+    }
+    if (dto.expectedAmount !== undefined) updateData.expectedAmount = dto.expectedAmount;
+    if (dto.amount !== undefined) updateData.amount = dto.amount;
+    if (dto.catName !== undefined) updateData.catName = dto.catName;
+    if (dto.addressSnapshot !== undefined) updateData.addressSnapshot = dto.addressSnapshot;
+    if (dto.entryNoteSnapshot !== undefined) updateData.entryNoteSnapshot = dto.entryNoteSnapshot;
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.sittingBooking.update({
+        where: { id: bookingId },
+        data: updateData,
+      });
+
+      await tx.sittingBookingAuditLog.create({
+        data: {
+          appId,
+          bookingId,
+          type: SittingAuditType.BOOKING_UPDATED,
+          actorUserId: userId,
+          payload: { changes: { ...dto } },
+        },
+      });
+
+      return updated;
+    });
+  }
+
+  async updateBookingStatus(params: {
+    userId: string;
+    bookingId: string;
+    appId?: string;
+    nextStatus: SittingBookingStatus;
+  }) {
+    const { userId, bookingId, nextStatus } = params;
+    const appId = params.appId ?? 'catsitter';
+
+    const booking = await this.prisma.sittingBooking.findFirst({
+      where: { id: bookingId, appId },
+      select: { id: true, client: { select: { userId: true } }, bookingStatus: true },
+    });
+
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.client.userId !== userId) throw new ForbiddenException('Not your booking');
+
+    const auditType =
+      nextStatus === SittingBookingStatus.CANCELLED
+        ? SittingAuditType.BOOKING_CANCELLED
+        : nextStatus === SittingBookingStatus.COMPLETED
+          ? SittingAuditType.BOOKING_COMPLETED
+          : SittingAuditType.BOOKING_UPDATED;
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.sittingBooking.update({
+        where: { id: bookingId },
+        data: {
+          bookingStatus: nextStatus,
+          updatedById: userId,
+        },
+      });
+
+      await tx.sittingBookingAuditLog.create({
+        data: {
+          appId,
+          bookingId,
+          type: auditType,
+          actorUserId: userId,
+          payload: { prev: booking.bookingStatus, next: nextStatus },
+        },
+      });
+
+      return updated;
+    });
+  }
+
   async updatePaymentStatus(params: {
     userId: string;
     bookingId: string;
     appId?: string;
-    nextStatus: 'UNPAID' | 'PAID' | 'REFUNDED';
+    nextStatus: SittingPaymentStatus;
   }) {
     const { userId, bookingId, nextStatus } = params;
     const appId = params.appId ?? 'catsitter';
@@ -99,22 +324,23 @@ export class SittingService {
       where: { id: bookingId, appId },
       select: { id: true, client: { select: { userId: true } }, paymentStatus: true },
     });
+
     if (!booking) throw new NotFoundException('Booking not found');
     if (booking.client.userId !== userId) throw new ForbiddenException('Not your booking');
 
-    return this.prisma.$transaction(async (transaction) => {
-      const updated = await transaction.sittingBooking.update({
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.sittingBooking.update({
         where: { id: bookingId },
         data: {
-          paymentStatus: nextStatus as any,
+          paymentStatus: nextStatus,
           updatedById: userId,
         },
       });
 
-      await transaction.sittingBookingAuditLog.create({
+      await tx.sittingBookingAuditLog.create({
         data: {
           appId,
-          bookingId: bookingId,
+          bookingId,
           type: SittingAuditType.PAYMENT_STATUS_CHANGED,
           actorUserId: userId,
           payload: { prev: booking.paymentStatus, next: nextStatus },
@@ -125,22 +351,24 @@ export class SittingService {
     });
   }
 
+  // ==================== CARE ====================
+
   async createCare(params: { userId: string; dto: CreateSittingCareDto; appId?: string }) {
     const { userId, dto } = params;
     const appId = params.appId ?? 'catsitter';
 
-    // booking 소유 체크(booking -> client.userId)
     const booking = await this.prisma.sittingBooking.findFirst({
       where: { id: dto.bookingId, appId },
       select: { id: true, client: { select: { userId: true } } },
     });
+
     if (!booking) throw new NotFoundException('Booking not found');
     if (booking.client.userId !== userId) throw new ForbiddenException('Not your booking');
 
     const careTimeUtc = kstStringToUtcDate(dto.careTimeKst);
 
-    return this.prisma.$transaction(async (transaction) => {
-      const care = await transaction.sittingCare.create({
+    return this.prisma.$transaction(async (tx) => {
+      const care = await tx.sittingCare.create({
         data: {
           appId,
           bookingId: dto.bookingId,
@@ -151,7 +379,7 @@ export class SittingService {
         },
       });
 
-      await transaction.sittingBookingAuditLog.create({
+      await tx.sittingBookingAuditLog.create({
         data: {
           appId,
           bookingId: dto.bookingId,
@@ -166,6 +394,132 @@ export class SittingService {
       });
 
       return care;
+    });
+  }
+
+  async getCare(params: { userId: string; careId: string; appId?: string }) {
+    const { userId, careId } = params;
+    const appId = params.appId ?? 'catsitter';
+
+    const care = await this.prisma.sittingCare.findFirst({
+      where: { id: careId, appId },
+      include: {
+        booking: {
+          select: { id: true, client: { select: { userId: true } } },
+        },
+      },
+    });
+
+    if (!care) throw new NotFoundException('Care not found');
+    if (care.booking.client.userId !== userId) throw new ForbiddenException('Not your care');
+
+    return care;
+  }
+
+  async getCaresByBooking(params: { userId: string; bookingId: string; appId?: string }) {
+    const { userId, bookingId } = params;
+    const appId = params.appId ?? 'catsitter';
+
+    const booking = await this.prisma.sittingBooking.findFirst({
+      where: { id: bookingId, appId },
+      select: { id: true, client: { select: { userId: true } } },
+    });
+
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.client.userId !== userId) throw new ForbiddenException('Not your booking');
+
+    return this.prisma.sittingCare.findMany({
+      where: { bookingId, appId },
+      orderBy: { careTime: 'asc' },
+    });
+  }
+
+  async updateCare(params: {
+    userId: string;
+    careId: string;
+    dto: UpdateSittingCareDto;
+    appId?: string;
+  }) {
+    const { userId, careId, dto } = params;
+    const appId = params.appId ?? 'catsitter';
+
+    const care = await this.prisma.sittingCare.findFirst({
+      where: { id: careId, appId },
+      include: {
+        booking: {
+          select: { id: true, client: { select: { userId: true } } },
+        },
+      },
+    });
+
+    if (!care) throw new NotFoundException('Care not found');
+    if (care.booking.client.userId !== userId) throw new ForbiddenException('Not your care');
+
+    const updateData: any = { updatedById: userId };
+
+    if (dto.careTimeKst) {
+      updateData.careTime = kstStringToUtcDate(dto.careTimeKst);
+    }
+    if (dto.note !== undefined) {
+      updateData.note = dto.note;
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.sittingCare.update({
+        where: { id: careId },
+        data: updateData,
+      });
+
+      await tx.sittingBookingAuditLog.create({
+        data: {
+          appId,
+          bookingId: care.booking.id,
+          type: SittingAuditType.CARE_UPDATED,
+          actorUserId: userId,
+          payload: { careId, changes: { ...dto } },
+        },
+      });
+
+      return updated;
+    });
+  }
+
+  async deleteCare(params: { userId: string; careId: string; appId?: string }) {
+    const { userId, careId } = params;
+    const appId = params.appId ?? 'catsitter';
+
+    const care = await this.prisma.sittingCare.findFirst({
+      where: { id: careId, appId },
+      include: {
+        booking: {
+          select: { id: true, client: { select: { userId: true } } },
+        },
+      },
+    });
+
+    if (!care) throw new NotFoundException('Care not found');
+    if (care.booking.client.userId !== userId) throw new ForbiddenException('Not your care');
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.sittingCare.delete({
+        where: { id: careId },
+      });
+
+      await tx.sittingBookingAuditLog.create({
+        data: {
+          appId,
+          bookingId: care.booking.id,
+          type: SittingAuditType.CARE_DELETED,
+          actorUserId: userId,
+          payload: {
+            careId,
+            careTimeUtc: care.careTime.toISOString(),
+            note: care.note,
+          },
+        },
+      });
+
+      return { success: true };
     });
   }
 }
