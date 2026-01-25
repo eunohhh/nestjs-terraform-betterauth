@@ -1,4 +1,4 @@
-import { DrawerContentScrollView } from '@react-navigation/drawer';
+import { DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native';
@@ -27,37 +27,40 @@ export function CustomDrawerContent(props: any) {
         <DrawerContentScrollView {...props} contentContainerStyle={{ paddingTop: insets.top }}>
             {/* Header / Profile Section */}
             <View style={[styles.profileSection, { borderBottomColor: theme.icon }]}>
-                 <TouchableOpacity 
-                    style={styles.profileHeader} 
-                    onPress={() => setDropdownOpen(!dropdownOpen)}
-                    activeOpacity={0.7}
-                 >
-                    <Image
-                        source={{ uri: user?.image || 'https://via.placeholder.com/150' }}
-                        style={styles.avatar}
+                <TouchableOpacity 
+                style={styles.profileHeader} 
+                onPress={() => setDropdownOpen(!dropdownOpen)}
+                activeOpacity={0.7}
+                >
+                <Image
+                    source={{ uri: user?.image || 'https://via.placeholder.com/150' }}
+                    style={styles.avatar}
+                />
+                <View style={styles.userInfo}>
+                    <Text style={[styles.email, { color: theme.text }]} numberOfLines={1}>{user?.email || 'user@example.com'}</Text>
+                    <IconSymbol 
+                        name={dropdownOpen ? "chevron.up" : "chevron.down"} 
+                        size={16} 
+                        color={theme.icon} 
                     />
-                    <View style={styles.userInfo}>
-                        <Text style={[styles.email, { color: theme.text }]} numberOfLines={1}>{user?.email || 'user@example.com'}</Text>
-                        <IconSymbol 
-                            name={dropdownOpen ? "chevron.up" : "chevron.down"} 
-                            size={16} 
-                            color={theme.icon} 
-                        />
-                    </View>
-                 </TouchableOpacity>
+                </View>
+                </TouchableOpacity>
 
-                 {/* Dropdown Content */}
-                 {dropdownOpen && (
-                     <View style={styles.dropdown}>
-                         <TouchableOpacity style={styles.dropdownItem} onPress={() => console.log('My Info')}>
-                             <Text style={[styles.dropdownText, { color: theme.text }]}>My Info</Text>
-                         </TouchableOpacity>
-                         <TouchableOpacity style={styles.dropdownItem} onPress={handleLogout}>
-                             <Text style={[styles.dropdownText, { color: 'red' }]}>Logout</Text>
-                         </TouchableOpacity>
-                     </View>
-                 )}
+                {/* Dropdown Content */}
+                {dropdownOpen && (
+                    <View style={styles.dropdown}>
+                        <TouchableOpacity style={styles.dropdownItem} onPress={() => console.log('My Info')}>
+                            <Text style={[styles.dropdownText, { color: theme.text }]}>My Info</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.dropdownItem} onPress={handleLogout}>
+                            <Text style={[styles.dropdownText, { color: 'red' }]}>Logout</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
+
+            {/* Navigation Items */}
+            <DrawerItemList {...props} />
         </DrawerContentScrollView>
     </View>
   );
@@ -67,6 +70,7 @@ const styles = StyleSheet.create({
     profileSection: {
         padding: 16,
         borderBottomWidth: 0.2, // Subtle divider
+        marginBottom: 16,
     },
     profileHeader: {
         flexDirection: 'row',

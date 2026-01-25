@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -11,10 +11,11 @@ import {
 } from 'react-native';
 import { Calendar, type DateData, LocaleConfig } from 'react-native-calendars';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { AddCareModal } from '@/components/add-care-modal';
 import { Colors } from '@/constants/theme';
-import { useSitting } from '@/providers/sitting-provider';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { SittingCare } from '@/lib/sitting-api';
+import { useSitting } from '@/providers/sitting-provider';
 
 // 한국어 로케일 설정
 LocaleConfig.locales['ko'] = {
@@ -34,6 +35,10 @@ LocaleConfig.defaultLocale = 'ko';
 
 const MAX_VISIBLE_CARES = 3;
 
+// 연도 범위 (현재 기준 ±5년)
+const YEAR_RANGE = 5;
+const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
 export default function CatSittingScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -45,6 +50,18 @@ export default function CatSittingScreen() {
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [yearMonthPickerVisible, setYearMonthPickerVisible] = useState(false);
+  const [addCareModalVisible, setAddCareModalVisible] = useState(false);
+
+  // 연도 목록 생성
+  const years = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const result: number[] = [];
+    for (let i = currentYear - YEAR_RANGE; i <= currentYear + YEAR_RANGE; i++) {
+      result.push(i);
+    }
+    return result;
+  }, []);
 
   useEffect(() => {
     fetchCaresForMonth();
@@ -110,6 +127,34 @@ export default function CatSittingScreen() {
     },
     [setSelectedMonth, fetchCaresForMonth],
   );
+
+  const handleYearMonthSelect = useCallback(
+    (year: number, month: number) => {
+      const newDate = new Date(year, month - 1, 1);
+      setSelectedMonth(newDate);
+      fetchCaresForMonth(newDate);
+      setYearMonthPickerVisible(false);
+    },
+    [setSelectedMonth, fetchCaresForMonth],
+  );
+
+  // 커스텀 헤더 렌더링
+  const renderCustomHeader = useCallback(() => {
+    const year = selectedMonth.getFullYear();
+    const month = selectedMonth.getMonth() + 1;
+
+    return (
+      <Pressable
+        style={styles.customHeader}
+        onPress={() => setYearMonthPickerVisible(true)}
+      >
+        <Text style={[styles.headerText, { color: theme.text }]}>
+          {year}년 {month}월
+        </Text>
+        <Text style={[styles.headerChevron, { color: theme.icon }]}>▼</Text>
+      </Pressable>
+    );
+  }, [selectedMonth, theme]);
 
   const handleCarePress = useCallback(
     (careId: string) => {
@@ -195,11 +240,13 @@ export default function CatSittingScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Calendar
+        key={selectedMonth.toISOString()}
         current={selectedMonth.toISOString().split('T')[0]}
         onMonthChange={handleMonthChange}
         markingType="multi-dot"
         markedDates={markedDates}
         dayComponent={renderDay}
+        renderHeader={renderCustomHeader}
         theme={{
           backgroundColor: theme.background,
           calendarBackground: theme.background,
@@ -311,6 +358,140 @@ export default function CatSittingScreen() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* 연/월 선택 모달 */}
+      <Modal
+        visible={yearMonthPickerVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setYearMonthPickerVisible(false)}
+      >
+        <Pressable
+          style={styles.yearMonthModalOverlay}
+          onPress={() => setYearMonthPickerVisible(false)}
+        >
+          <View
+            style={[
+              styles.yearMonthPickerContent,
+              { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' },
+            ]}
+          >
+            <Pressable onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>
+                  날짜 선택
+                </Text>
+                <Pressable onPress={() => setYearMonthPickerVisible(false)}>
+                  <Text style={[styles.closeButton, { color: theme.tint }]}>닫기</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.pickerContainer}>
+                {/* 연도 선택 */}
+                <View style={styles.pickerColumn}>
+                  <Text style={[styles.pickerLabel, { color: theme.icon }]}>연도</Text>
+                  <ScrollView
+                    style={styles.pickerScroll}
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {years.map((year) => (
+                      <Pressable
+                        key={year}
+                        style={[
+                          styles.pickerItem,
+                          year === selectedMonth.getFullYear() && {
+                            backgroundColor: theme.tint + '20',
+                          },
+                        ]}
+                        onPress={() =>
+                          handleYearMonthSelect(year, selectedMonth.getMonth() + 1)
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.pickerItemText,
+                            { color: theme.text },
+                            year === selectedMonth.getFullYear() && {
+                              color: theme.tint,
+                              fontWeight: '600',
+                            },
+                          ]}
+                        >
+                          {year}년
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                {/* 월 선택 */}
+                <View style={styles.pickerColumn}>
+                  <Text style={[styles.pickerLabel, { color: theme.icon }]}>월</Text>
+                  <ScrollView
+                    style={styles.pickerScroll}
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {MONTHS.map((month) => (
+                      <Pressable
+                        key={month}
+                        style={[
+                          styles.pickerItem,
+                          month === selectedMonth.getMonth() + 1 && {
+                            backgroundColor: theme.tint + '20',
+                          },
+                        ]}
+                        onPress={() =>
+                          handleYearMonthSelect(selectedMonth.getFullYear(), month)
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.pickerItemText,
+                            { color: theme.text },
+                            month === selectedMonth.getMonth() + 1 && {
+                              color: theme.tint,
+                              fontWeight: '600',
+                            },
+                          ]}
+                        >
+                          {month}월
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+
+              {/* 오늘로 이동 버튼 */}
+              <Pressable
+                style={[styles.todayButton, { borderColor: theme.tint }]}
+                onPress={() => {
+                  const today = new Date();
+                  handleYearMonthSelect(today.getFullYear(), today.getMonth() + 1);
+                }}
+              >
+                <Text style={[styles.todayButtonText, { color: theme.tint }]}>
+                  오늘로 이동
+                </Text>
+              </Pressable>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* 케어 추가 모달 */}
+      <AddCareModal
+        visible={addCareModalVisible}
+        onClose={() => setAddCareModalVisible(false)}
+      />
+
+      {/* 플로팅 액션 버튼 */}
+      <Pressable
+        style={[styles.fab, { backgroundColor: theme.tint }]}
+        onPress={() => setAddCareModalVisible(true)}
+      >
+        <Text style={styles.fabText}>+</Text>
+      </Pressable>
     </View>
   );
 }
@@ -356,6 +537,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+  },
+  yearMonthModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalContent: {
     borderTopLeftRadius: 20,
@@ -410,5 +597,84 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
+  },
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    gap: 6,
+  },
+  headerText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  headerChevron: {
+    fontSize: 10,
+  },
+  yearMonthPickerContent: {
+    borderRadius: 20,
+    padding: 16,
+    width: '90%',
+    maxHeight: '60%',
+  },
+  pickerContainer: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  pickerColumn: {
+    flex: 1,
+  },
+  pickerLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  pickerScroll: {
+    maxHeight: 250,
+  },
+  pickerItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  pickerItemText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  todayButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  todayButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  fabText: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '300',
+    marginTop: -2,
   },
 });

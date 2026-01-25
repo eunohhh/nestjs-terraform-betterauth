@@ -1,5 +1,17 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
-
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
+import { AppJwtGuard } from '../auth/app-jwt.guard';
 import { SittingBookingStatus } from '../generated/prisma/client';
 import { CreateSittingBookingDto } from './dto/create-booking.dto';
 import { CreateSittingCareDto } from './dto/create-care.dto';
@@ -12,6 +24,8 @@ import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
 import { SittingService } from './sitting.service';
 
 @Controller('/sitting')
+@UseGuards(AppJwtGuard)
+@AllowAnonymous()
 export class SittingController {
   constructor(private readonly sitting: SittingService) {}
 
@@ -19,19 +33,19 @@ export class SittingController {
 
   @Post('/clients')
   async createClient(@Req() req: any, @Body() dto: CreateSittingClientDto) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.createClient({ userId, dto });
   }
 
   @Get('/clients')
   async getClients(@Req() req: any) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.getClients({ userId });
   }
 
   @Get('/clients/:clientId')
   async getClient(@Req() req: any, @Param('clientId') clientId: string) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.getClient({ userId, clientId });
   }
 
@@ -41,13 +55,13 @@ export class SittingController {
     @Param('clientId') clientId: string,
     @Body() dto: UpdateSittingClientDto,
   ) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.updateClient({ userId, clientId, dto });
   }
 
   @Delete('/clients/:clientId')
   async deleteClient(@Req() req: any, @Param('clientId') clientId: string) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.deleteClient({ userId, clientId });
   }
 
@@ -55,7 +69,7 @@ export class SittingController {
 
   @Post('/bookings')
   async createBooking(@Req() req: any, @Body() dto: CreateSittingBookingDto) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.createBooking({ userId, dto });
   }
 
@@ -65,13 +79,13 @@ export class SittingController {
     @Query('clientId') clientId?: string,
     @Query('status') status?: SittingBookingStatus,
   ) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.getBookings({ userId, clientId, status });
   }
 
   @Get('/bookings/:bookingId')
   async getBooking(@Req() req: any, @Param('bookingId') bookingId: string) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.getBooking({ userId, bookingId });
   }
 
@@ -81,7 +95,7 @@ export class SittingController {
     @Param('bookingId') bookingId: string,
     @Body() dto: UpdateSittingBookingDto,
   ) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.updateBooking({ userId, bookingId, dto });
   }
 
@@ -91,7 +105,7 @@ export class SittingController {
     @Param('bookingId') bookingId: string,
     @Body() dto: UpdateBookingStatusDto,
   ) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.updateBookingStatus({
       userId,
       bookingId,
@@ -105,7 +119,7 @@ export class SittingController {
     @Param('bookingId') bookingId: string,
     @Body() dto: UpdatePaymentStatusDto,
   ) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.updatePaymentStatus({
       userId,
       bookingId,
@@ -117,19 +131,19 @@ export class SittingController {
 
   @Post('/cares')
   async createCare(@Req() req: any, @Body() dto: CreateSittingCareDto) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.createCare({ userId, dto });
   }
 
   @Get('/bookings/:bookingId/cares')
   async getCaresByBooking(@Req() req: any, @Param('bookingId') bookingId: string) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.getCaresByBooking({ userId, bookingId });
   }
 
   @Get('/cares/:careId')
   async getCare(@Req() req: any, @Param('careId') careId: string) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.getCare({ userId, careId });
   }
 
@@ -139,19 +153,19 @@ export class SittingController {
     @Param('careId') careId: string,
     @Body() dto: UpdateSittingCareDto,
   ) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.updateCare({ userId, careId, dto });
   }
 
   @Delete('/cares/:careId')
   async deleteCare(@Req() req: any, @Param('careId') careId: string) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.deleteCare({ userId, careId });
   }
 
   @Patch('/cares/:careId/toggle-complete')
   async toggleCareComplete(@Req() req: any, @Param('careId') careId: string) {
-    const userId = req.user.sub;
+    const userId = req.appUserId;
     return this.sitting.toggleCareComplete({ userId, careId });
   }
 
@@ -163,12 +177,8 @@ export class SittingController {
    * @param to ISO 날짜 문자열 (예: "2026-01-31")
    */
   @Get('/calendar/cares')
-  async getCaresForCalendar(
-    @Req() req: any,
-    @Query('from') from: string,
-    @Query('to') to: string,
-  ) {
-    const userId = req.user.sub;
+  async getCaresForCalendar(@Req() req: any, @Query('from') from: string, @Query('to') to: string) {
+    const userId = req.appUserId;
     const fromDate = new Date(from);
     const toDate = new Date(to);
     return this.sitting.getCaresForCalendar({ userId, from: fromDate, to: toDate });
