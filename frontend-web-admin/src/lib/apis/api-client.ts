@@ -35,6 +35,12 @@ export const api = {
       });
       return response.data;
     },
+    getCaresForCalendar: async (params: { from: string; to: string }) => {
+      const response = await axiosInstance.get<any[]>("/sitting/calendar/cares", {
+        params,
+      });
+      return response.data;
+    },
     // Add more methods as requested/needed
   },
 };

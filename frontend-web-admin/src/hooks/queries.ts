@@ -15,3 +15,10 @@ export function useSittingBookings(clientId?: string, status?: string) {
     queryFn: () => api.sitting.getBookings({ clientId, status }),
   });
 }
+
+export function useSittingCaresForCalendar(from: string, to: string) {
+  return useQuery({
+    queryKey: ["sitting", "calendar", { from, to }],
+    queryFn: () => api.sitting.getCaresForCalendar({ from, to }),
+  });
+}
