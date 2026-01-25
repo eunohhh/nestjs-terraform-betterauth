@@ -554,6 +554,7 @@ const pageStyles = StyleSheet.create({
   },
   headerAction: {
     fontSize: 16,
+    textAlign: 'center',
     fontWeight: '600',
   },
   headerSide: {

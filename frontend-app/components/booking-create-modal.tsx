@@ -27,6 +27,10 @@ type Props = {
   onClose: () => void;
   isDark: boolean;
   theme: Theme;
+  title?: string;
+  saveLabel?: string;
+  allowClientChange?: boolean;
+  showClientCreate?: boolean;
   clients: SittingClient[];
   selectedClient: SittingClient | null;
   isLoadingClients: boolean;
@@ -37,6 +41,8 @@ type Props = {
   onOpenDatePicker: () => void;
   onOpenTimePicker: () => void;
   contactMethod: string | null;
+  entryNote?: string;
+  onChangeEntryNote?: (value: string) => void;
   expectedAmount: string;
   onChangeExpectedAmount: (value: string) => void;
   amount: string;
@@ -52,6 +58,10 @@ export function BookingCreateModal({
   onClose,
   isDark,
   theme,
+  title,
+  saveLabel,
+  allowClientChange,
+  showClientCreate,
   clients,
   selectedClient,
   isLoadingClients,
@@ -62,6 +72,8 @@ export function BookingCreateModal({
   onOpenDatePicker,
   onOpenTimePicker,
   contactMethod,
+  entryNote,
+  onChangeEntryNote,
   expectedAmount,
   onChangeExpectedAmount,
   amount,
@@ -71,6 +83,11 @@ export function BookingCreateModal({
   formatDate,
   formatTime,
 }: Props) {
+  const heading = title ?? '예약 추가';
+  const saveText = saveLabel ?? '예약 저장';
+  const canSelectClient = allowClientChange !== false;
+  const canCreateClient = showClientCreate !== false;
+
   return (
     <>
       <Modal
@@ -92,7 +109,7 @@ export function BookingCreateModal({
               ]}
             >
               <View style={styles.header}>
-                <Text style={[styles.title, { color: theme.text }]}>예약 추가</Text>
+                <Text style={[styles.title, { color: theme.text }]}>{heading}</Text>
                 <Pressable onPress={onClose}>
                   <Text style={[styles.closeButton, { color: theme.tint }]}>취소</Text>
                 </Pressable>
@@ -106,36 +123,56 @@ export function BookingCreateModal({
               >
                 <View style={styles.field}>
                   <Text style={[styles.label, { color: theme.icon }]}>고객</Text>
-                  {isLoadingClients ? (
-                    <ActivityIndicator size="small" color={theme.tint} />
-                  ) : clients.length === 0 ? (
-                    <Text style={[styles.emptyText, { color: theme.icon }]}>
-                      등록된 고객이 없습니다
-                    </Text>
-                  ) : (
-                    <Pressable
-                      style={[
-                        styles.selectButton,
-                        {
-                          backgroundColor: isDark ? '#374151' : '#F3F4F6',
-                          borderColor: isDark ? '#4B5563' : '#E5E7EB',
-                        },
-                      ]}
-                      onPress={onOpenClientPicker}
-                    >
-                      <Text style={[styles.selectButtonText, { color: theme.text }]}>
-                        {selectedClient
-                          ? `${selectedClient.clientName} - ${selectedClient.catName}`
-                          : '고객을 선택하세요'}
+                    {isLoadingClients ? (
+                      <ActivityIndicator size="small" color={theme.tint} />
+                    ) : clients.length === 0 ? (
+                      <Text style={[styles.emptyText, { color: theme.icon }]}>
+                        등록된 고객이 없습니다
                       </Text>
-                      <Text style={{ color: theme.icon }}>▼</Text>
-                    </Pressable>
-                  )}
+                    ) : canSelectClient ? (
+                      <Pressable
+                        style={[
+                          styles.selectButton,
+                          {
+                            backgroundColor: isDark ? '#374151' : '#F3F4F6',
+                            borderColor: isDark ? '#4B5563' : '#E5E7EB',
+                          },
+                        ]}
+                        onPress={onOpenClientPicker}
+                      >
+                        <Text style={[styles.selectButtonText, { color: theme.text }]}>
+                          {selectedClient
+                            ? `${selectedClient.clientName} - ${selectedClient.catName}`
+                            : '고객을 선택하세요'}
+                        </Text>
+                        <Text style={{ color: theme.icon }}>▼</Text>
+                      </Pressable>
+                    ) : (
+                      <View
+                        style={[
+                          styles.selectButton,
+                          {
+                            backgroundColor: isDark ? '#374151' : '#F3F4F6',
+                            borderColor: isDark ? '#4B5563' : '#E5E7EB',
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.selectButtonText, { color: theme.text }]}>
+                          {selectedClient
+                            ? `${selectedClient.clientName} - ${selectedClient.catName}`
+                            : '고객 정보 없음'}
+                        </Text>
+                      </View>
+                    )}
 
-                  <Pressable style={styles.linkButton} onPress={onOpenClientCreate}>
-                    <Text style={[styles.linkText, { color: theme.tint }]}>+ 고객 추가</Text>
-                  </Pressable>
-                </View>
+                    {canCreateClient && (
+                      <Pressable style={styles.linkButton} onPress={onOpenClientCreate}>
+                        <Text style={[styles.linkText, { color: theme.tint }]}>
+                          + 고객 추가
+                        </Text>
+                      </Pressable>
+                    )}
+                  </View>
 
                 <View style={styles.field}>
                   <Text style={[styles.label, { color: theme.icon }]}>문의 경로</Text>
@@ -192,8 +229,8 @@ export function BookingCreateModal({
                   </Pressable>
                 </View>
 
-                <View style={styles.field}>
-                  <Text style={[styles.label, { color: theme.icon }]}>예상 금액</Text>
+                  <View style={styles.field}>
+                    <Text style={[styles.label, { color: theme.icon }]}>예상 금액</Text>
                   <TextInput
                     style={[
                       styles.textInput,
@@ -209,10 +246,10 @@ export function BookingCreateModal({
                     placeholderTextColor={theme.icon}
                     keyboardType="numeric"
                   />
-                </View>
+                  </View>
 
-                <View style={styles.field}>
-                  <Text style={[styles.label, { color: theme.icon }]}>결제 금액</Text>
+                  <View style={styles.field}>
+                    <Text style={[styles.label, { color: theme.icon }]}>결제 금액</Text>
                   <TextInput
                     style={[
                       styles.textInput,
@@ -226,10 +263,32 @@ export function BookingCreateModal({
                     onChangeText={onChangeAmount}
                     placeholder="결제 금액 (원)"
                     placeholderTextColor={theme.icon}
-                    keyboardType="numeric"
-                  />
-                </View>
-              </ScrollView>
+                      keyboardType="numeric"
+                    />
+                  </View>
+
+                  {onChangeEntryNote && (
+                    <View style={styles.field}>
+                      <Text style={[styles.label, { color: theme.icon }]}>메모</Text>
+                      <TextInput
+                        style={[
+                          styles.textInput,
+                          {
+                            backgroundColor: isDark ? '#374151' : '#F3F4F6',
+                            borderColor: isDark ? '#4B5563' : '#E5E7EB',
+                            color: theme.text,
+                          },
+                        ]}
+                        value={entryNote ?? ''}
+                        onChangeText={onChangeEntryNote}
+                        placeholder="메모"
+                        placeholderTextColor={theme.icon}
+                        multiline
+                        numberOfLines={3}
+                      />
+                    </View>
+                  )}
+                </ScrollView>
 
               <Pressable
                 style={[
@@ -240,12 +299,12 @@ export function BookingCreateModal({
                 onPress={onSave}
                 disabled={isSaving || !selectedClient}
               >
-                {isSaving ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.saveButtonText}>예약 저장</Text>
-                )}
-              </Pressable>
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.saveButtonText}>{saveText}</Text>
+                  )}
+                </Pressable>
             </View>
           </KeyboardAvoidingView>
         </View>

@@ -79,6 +79,15 @@ export type CreateClientInput = {
   catPic?: string;
 };
 
+export type UpdateClientInput = {
+  clientName?: string;
+  catName?: string;
+  address?: string;
+  entryNote?: string;
+  requirements?: string;
+  catPic?: string;
+};
+
 export type CreateBookingInput = {
   clientId: string;
   reservationKst: string;
@@ -88,6 +97,16 @@ export type CreateBookingInput = {
   entryNoteSnapshotOverride?: string;
   addressSnapshotOverride?: string;
   catNameOverride?: string;
+};
+
+export type UpdateBookingInput = {
+  reservationKst?: string;
+  expectedAmount?: number;
+  amount?: number;
+  contactMethod?: string;
+  entryNoteSnapshot?: string;
+  catName?: string;
+  addressSnapshot?: string;
 };
 
 // ==================== API CLIENT ====================
@@ -125,6 +144,23 @@ export const createClient = async (
   return response.data;
 };
 
+export const updateClient = async (
+  token: string,
+  clientId: string,
+  data: UpdateClientInput,
+): Promise<SittingClient> => {
+  const response = await api.patch(
+    `/sitting/clients/${clientId}`,
+    data,
+    authHeaders(token),
+  );
+  return response.data;
+};
+
+export const deleteClient = async (token: string, clientId: string): Promise<void> => {
+  await api.delete(`/sitting/clients/${clientId}`, authHeaders(token));
+};
+
 export const getClients = async (token: string): Promise<SittingClient[]> => {
   const response = await api.get('/sitting/clients', authHeaders(token));
   return response.data;
@@ -142,6 +178,32 @@ export const createBooking = async (
   data: CreateBookingInput,
 ): Promise<SittingBooking> => {
   const response = await api.post('/sitting/bookings', data, authHeaders(token));
+  return response.data;
+};
+
+export const updateBooking = async (
+  token: string,
+  bookingId: string,
+  data: UpdateBookingInput,
+): Promise<SittingBooking> => {
+  const response = await api.patch(
+    `/sitting/bookings/${bookingId}`,
+    data,
+    authHeaders(token),
+  );
+  return response.data;
+};
+
+export const updateBookingStatus = async (
+  token: string,
+  bookingId: string,
+  bookingStatus: 'CONFIRMED' | 'COMPLETED' | 'CANCELLED',
+): Promise<SittingBooking> => {
+  const response = await api.patch(
+    `/sitting/bookings/${bookingId}/status`,
+    { bookingStatus },
+    authHeaders(token),
+  );
   return response.data;
 };
 

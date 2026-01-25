@@ -36,6 +36,13 @@ export default function CatSittingLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="admin"
+        options={{
+          title: '관리자',
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

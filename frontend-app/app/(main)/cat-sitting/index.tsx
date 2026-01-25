@@ -15,6 +15,7 @@ import { AddCareModal } from '@/components/add-care-modal';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { SittingCare } from '@/lib/sitting-api';
+import { useAuth } from '@/providers/auth-provider';
 import { useSitting } from '@/providers/sitting-provider';
 
 // 한국어 로케일 설정
@@ -44,6 +45,7 @@ export default function CatSittingScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
   const isDark = colorScheme === 'dark';
+  const { user } = useAuth();
 
   const { cares, isLoading, fetchCaresForMonth, toggleComplete, selectedMonth, setSelectedMonth } =
     useSitting();
@@ -292,6 +294,23 @@ export default function CatSittingScreen() {
         style={styles.calendar}
       />
 
+      {user?.role === 'admin' && (
+        <View style={styles.adminButtonRow}>
+          <Pressable
+            style={[
+              styles.adminButton,
+              {
+                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                borderColor: isDark ? '#374151' : '#E5E7EB',
+              },
+            ]}
+            onPress={() => router.push('/cat-sitting/admin')}
+          >
+            <Text style={[styles.adminButtonText, { color: theme.text }]}>관리자</Text>
+          </Pressable>
+        </View>
+      )}
+
       {/* 일별 상세 모달 */}
       <Modal
         visible={modalVisible}
@@ -539,6 +558,20 @@ const styles = StyleSheet.create({
   },
   calendar: {
     paddingBottom: 10,
+  },
+  adminButtonRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  adminButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  adminButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   dayContainer: {
     width: 44,
