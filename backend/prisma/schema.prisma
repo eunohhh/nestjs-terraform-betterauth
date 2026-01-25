@@ -37,6 +37,7 @@ enum SittingAuditType {
   CARE_ADDED
   CARE_UPDATED
   CARE_DELETED
+  CARE_COMPLETED
   NOTE_UPDATED
 }
 
@@ -219,6 +220,9 @@ model SittingCare {
 
   // 방문 시각 (UTC 저장 권장)
   careTime DateTime
+
+  // 완료 시각 (null이면 미완료)
+  completedAt DateTime?
 
   note String? @db.Text
 

@@ -522,4 +522,103 @@ export class SittingService {
       return { success: true };
     });
   }
+
+  // ==================== CALENDAR ====================
+
+  /**
+   * 달력용 care 조회 - 날짜 범위로 조회
+   * from/to는 UTC ISO 문자열 (예: "2026-01-01T00:00:00.000Z")
+   */
+  async getCaresForCalendar(params: {
+    userId: string;
+    from: Date;
+    to: Date;
+    appId?: string;
+  }) {
+    const { userId, from, to } = params;
+    const appId = params.appId ?? 'catsitter';
+
+    return this.prisma.sittingCare.findMany({
+      where: {
+        appId,
+        careTime: {
+          gte: from,
+          lte: to,
+        },
+        booking: {
+          client: { userId },
+        },
+      },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            catName: true,
+            addressSnapshot: true,
+            client: {
+              select: {
+                id: true,
+                clientName: true,
+                catName: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { careTime: 'asc' },
+    });
+  }
+
+  /**
+   * Care 완료/미완료 토글
+   */
+  async toggleCareComplete(params: {
+    userId: string;
+    careId: string;
+    appId?: string;
+  }) {
+    const { userId, careId } = params;
+    const appId = params.appId ?? 'catsitter';
+
+    const care = await this.prisma.sittingCare.findFirst({
+      where: { id: careId, appId },
+      include: {
+        booking: {
+          select: { id: true, client: { select: { userId: true } } },
+        },
+      },
+    });
+
+    if (!care) throw new NotFoundException('Care not found');
+    if (care.booking.client.userId !== userId) throw new ForbiddenException('Not your care');
+
+    const isCompleting = care.completedAt === null;
+    const now = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.sittingCare.update({
+        where: { id: careId },
+        data: {
+          completedAt: isCompleting ? now : null,
+          updatedById: userId,
+        },
+      });
+
+      await tx.sittingBookingAuditLog.create({
+        data: {
+          appId,
+          bookingId: care.booking.id,
+          type: SittingAuditType.CARE_COMPLETED,
+          actorUserId: userId,
+          payload: {
+            careId,
+            action: isCompleting ? 'completed' : 'uncompleted',
+            completedAt: isCompleting ? now.toISOString() : null,
+          },
+        },
+      });
+
+      return updated;
+    });
+  }
 }

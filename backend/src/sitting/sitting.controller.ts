@@ -148,4 +148,29 @@ export class SittingController {
     const userId = req.user.sub;
     return this.sitting.deleteCare({ userId, careId });
   }
+
+  @Patch('/cares/:careId/toggle-complete')
+  async toggleCareComplete(@Req() req: any, @Param('careId') careId: string) {
+    const userId = req.user.sub;
+    return this.sitting.toggleCareComplete({ userId, careId });
+  }
+
+  // ==================== CALENDAR ====================
+
+  /**
+   * 달력용 care 조회
+   * @param from ISO 날짜 문자열 (예: "2026-01-01")
+   * @param to ISO 날짜 문자열 (예: "2026-01-31")
+   */
+  @Get('/calendar/cares')
+  async getCaresForCalendar(
+    @Req() req: any,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    const userId = req.user.sub;
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    return this.sitting.getCaresForCalendar({ userId, from: fromDate, to: toDate });
+  }
 }
