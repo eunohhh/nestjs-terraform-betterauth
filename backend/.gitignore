@@ -17,3 +17,5 @@
 # Prisma
 prisma/migrations/.migration_lock.toml
 /src/generated
+
+/sql

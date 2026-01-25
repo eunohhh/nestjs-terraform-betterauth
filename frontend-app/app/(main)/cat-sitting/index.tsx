@@ -67,14 +67,21 @@ export default function CatSittingScreen() {
     fetchCaresForMonth();
   }, [fetchCaresForMonth]);
 
+  const formatDateKey = useCallback((dateTime: string) => {
+    const localDate = new Date(dateTime).toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: 'Asia/Seoul',
+    });
+    return localDate.replace(/\. /g, '-').replace('.', '');
+  }, []);
+
   // 날짜별로 care 그룹핑
   const caresByDate = React.useMemo(() => {
     const grouped: Record<string, SittingCare[]> = {};
     for (const care of cares) {
-      const date = new Date(care.careTime);
-      // KST 기준으로 날짜 추출
-      const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-      const dateKey = kstDate.toISOString().split('T')[0];
+      const dateKey = formatDateKey(care.careTime);
       if (!grouped[dateKey]) {
         grouped[dateKey] = [];
       }
@@ -87,7 +94,7 @@ export default function CatSittingScreen() {
       );
     }
     return grouped;
-  }, [cares]);
+  }, [cares, formatDateKey]);
 
   // 마킹 데이터 생성
   const markedDates = React.useMemo(() => {
@@ -144,17 +151,34 @@ export default function CatSittingScreen() {
     const month = selectedMonth.getMonth() + 1;
 
     return (
-      <Pressable
-        style={styles.customHeader}
-        onPress={() => setYearMonthPickerVisible(true)}
-      >
-        <Text style={[styles.headerText, { color: theme.text }]}>
-          {year}년 {month}월
-        </Text>
-        <Text style={[styles.headerChevron, { color: theme.icon }]}>▼</Text>
-      </Pressable>
+      <View style={styles.customHeader} pointerEvents="box-none">
+        <Pressable
+          style={styles.customHeaderButton}
+          onPress={() => setYearMonthPickerVisible(true)}
+          hitSlop={8}
+        >
+          <Text style={[styles.headerText, { color: theme.text }]}>
+            {year}년 {month}월
+          </Text>
+          <Text style={[styles.headerChevron, { color: theme.icon }]}>▼</Text>
+        </Pressable>
+      </View>
     );
   }, [selectedMonth, theme]);
+
+  const handleArrowMonthChange = useCallback(
+    (direction: 'prev' | 'next') => {
+      const offset = direction === 'prev' ? -1 : 1;
+      const newDate = new Date(
+        selectedMonth.getFullYear(),
+        selectedMonth.getMonth() + offset,
+        1,
+      );
+      setSelectedMonth(newDate);
+      fetchCaresForMonth(newDate);
+    },
+    [selectedMonth, setSelectedMonth, fetchCaresForMonth],
+  );
 
   const handleCarePress = useCallback(
     (careId: string) => {
@@ -181,6 +205,12 @@ export default function CatSittingScreen() {
   };
 
   const selectedDateCares = selectedDate ? caresByDate[selectedDate] || [] : [];
+
+  const currentMonthKey = useMemo(() => {
+    const year = selectedMonth.getFullYear();
+    const month = String(selectedMonth.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}-01`;
+  }, [selectedMonth]);
 
   // 커스텀 Day 컴포넌트
   const renderDay = useCallback(
@@ -240,9 +270,11 @@ export default function CatSittingScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Calendar
-        key={selectedMonth.toISOString()}
-        current={selectedMonth.toISOString().split('T')[0]}
+        key={currentMonthKey}
+        current={currentMonthKey}
         onMonthChange={handleMonthChange}
+        onPressArrowLeft={() => handleArrowMonthChange('prev')}
+        onPressArrowRight={() => handleArrowMonthChange('next')}
         markingType="multi-dot"
         markedDates={markedDates}
         dayComponent={renderDay}
@@ -603,6 +635,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
+  },
+  customHeaderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
   },
   headerText: {

@@ -13,6 +13,8 @@ import {
 
 import { useAuth } from './auth-provider';
 
+const KST_OFFSET_HOURS = 9;
+
 type SittingContextValue = {
   cares: SittingCare[];
   isLoading: boolean;
@@ -44,13 +46,19 @@ export const SittingProvider = ({ children }: { children: React.ReactNode }) => 
       const year = targetDate.getFullYear();
       const month = targetDate.getMonth();
 
-      // 달력에 표시할 범위: 이전달 마지막 주 ~ 다음달 첫 주
-      const from = new Date(year, month, 1);
-      from.setDate(from.getDate() - from.getDay()); // 해당 주의 일요일로
+      // 달력에 표시할 범위: KST 기준 이전달 마지막 주 ~ 다음달 첫 주
+      const kstOffsetMs = KST_OFFSET_HOURS * 60 * 60 * 1000;
+      const kstMonthStartUtc = new Date(Date.UTC(year, month, 1, -KST_OFFSET_HOURS));
+      const startDay = new Date(kstMonthStartUtc.getTime() + kstOffsetMs).getUTCDay();
+      const from = new Date(kstMonthStartUtc);
+      from.setUTCDate(from.getUTCDate() - startDay); // KST 기준 해당 주의 일요일
 
-      const to = new Date(year, month + 1, 0);
-      to.setDate(to.getDate() + (6 - to.getDay())); // 해당 주의 토요일로
-      to.setHours(23, 59, 59, 999);
+      const kstMonthEndUtc = new Date(
+        Date.UTC(year, month + 1, 0, 23 - KST_OFFSET_HOURS, 59, 59, 999),
+      );
+      const endDay = new Date(kstMonthEndUtc.getTime() + kstOffsetMs).getUTCDay();
+      const to = new Date(kstMonthEndUtc);
+      to.setUTCDate(to.getUTCDate() + (6 - endDay)); // KST 기준 해당 주의 토요일
 
       try {
         setIsLoading(true);

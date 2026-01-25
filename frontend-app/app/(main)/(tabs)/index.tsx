@@ -40,7 +40,7 @@ export default function MyInfoScreen() {
 
             <View style={styles.item}>
                 <ThemedText type="defaultSemiBold">Role</ThemedText>
-                <ThemedText style={{ color: theme.icon }}>Member</ThemedText>
+                <ThemedText style={{ color: theme.icon }}>{user?.role}</ThemedText>
             </View>
         </View>
 

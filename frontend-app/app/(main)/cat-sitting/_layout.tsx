@@ -29,6 +29,13 @@ export default function CatSittingLayout() {
           headerLeft: undefined,
         }}
       />
+      <Stack.Screen
+        name="bookings"
+        options={{
+          title: '예약 목록',
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

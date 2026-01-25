@@ -28,6 +28,7 @@ export type SittingBooking = {
   expectedAmount: number;
   amount: number;
   paymentStatus: 'UNPAID' | 'PAID' | 'REFUNDED';
+  contactMethod: string | null;
   addressSnapshot: string;
   entryNoteSnapshot: string | null;
   createdAt: string;
@@ -68,6 +69,26 @@ export type UpdateCareInput = {
   note?: string;
 };
 
+export type CreateClientInput = {
+  clientName: string;
+  catName: string;
+  address: string;
+  entryNote?: string;
+  requirements?: string;
+  catPic?: string;
+};
+
+export type CreateBookingInput = {
+  clientId: string;
+  reservationKst: string;
+  expectedAmount: number;
+  amount: number;
+  contactMethod?: string;
+  entryNoteSnapshotOverride?: string;
+  addressSnapshotOverride?: string;
+  catNameOverride?: string;
+};
+
 // ==================== API CLIENT ====================
 
 const api = axios.create({
@@ -95,6 +116,14 @@ export const getCaresForCalendar = async (
 
 // ==================== CLIENTS ====================
 
+export const createClient = async (
+  token: string,
+  data: CreateClientInput,
+): Promise<SittingClient> => {
+  const response = await api.post('/sitting/clients', data, authHeaders(token));
+  return response.data;
+};
+
 export const getClients = async (token: string): Promise<SittingClient[]> => {
   const response = await api.get('/sitting/clients', authHeaders(token));
   return response.data;
@@ -106,6 +135,14 @@ export const getClient = async (token: string, clientId: string): Promise<Sittin
 };
 
 // ==================== BOOKINGS ====================
+
+export const createBooking = async (
+  token: string,
+  data: CreateBookingInput,
+): Promise<SittingBooking> => {
+  const response = await api.post('/sitting/bookings', data, authHeaders(token));
+  return response.data;
+};
 
 export const getBookings = async (
   token: string,

@@ -179,6 +179,9 @@ model SittingBooking {
   // "예약 일시" (UTC 저장 권장)
   reservationDate DateTime
 
+  // 연락 방법 (카톡, 숨고 등)
+  contactMethod String? @db.Text
+
   // 기본은 client.catName을 복사해두는 스냅샷 느낌으로 권장(나중에 이름 바뀌어도 당시 기록 유지)
   catName String @db.Text
 

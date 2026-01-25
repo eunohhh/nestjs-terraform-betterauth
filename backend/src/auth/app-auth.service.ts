@@ -90,7 +90,7 @@ export class AppAuthService {
   async getUser(userId: string) {
     return this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true, image: true },
+      select: { id: true, name: true, email: true, image: true, role: true },
     });
   }
 

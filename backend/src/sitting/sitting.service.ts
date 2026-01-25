@@ -145,6 +145,7 @@ export class SittingService {
           expectedAmount: dto.expectedAmount,
           amount: dto.amount,
           paymentStatus: SittingPaymentStatus.UNPAID,
+          contactMethod: dto.contactMethod ?? null,
           addressSnapshot,
           entryNoteSnapshot,
           createdById: userId,
@@ -166,6 +167,7 @@ export class SittingService {
             amount: booking.amount,
             paymentStatus: booking.paymentStatus,
             bookingStatus: booking.bookingStatus,
+            contactMethod: booking.contactMethod,
           },
         },
       });
@@ -240,6 +242,7 @@ export class SittingService {
     }
     if (dto.expectedAmount !== undefined) updateData.expectedAmount = dto.expectedAmount;
     if (dto.amount !== undefined) updateData.amount = dto.amount;
+    if (dto.contactMethod !== undefined) updateData.contactMethod = dto.contactMethod;
     if (dto.catName !== undefined) updateData.catName = dto.catName;
     if (dto.addressSnapshot !== undefined) updateData.addressSnapshot = dto.addressSnapshot;
     if (dto.entryNoteSnapshot !== undefined) updateData.entryNoteSnapshot = dto.entryNoteSnapshot;
@@ -529,13 +532,10 @@ export class SittingService {
    * 달력용 care 조회 - 날짜 범위로 조회
    * from/to는 UTC ISO 문자열 (예: "2026-01-01T00:00:00.000Z")
    */
-  async getCaresForCalendar(params: {
-    userId: string;
-    from: Date;
-    to: Date;
-    appId?: string;
-  }) {
+  async getCaresForCalendar(params: { userId: string; from: Date; to: Date; appId?: string }) {
     const { userId, from, to } = params;
+    console.log('from ====>', from);
+    console.log('to ====>', to);
     const appId = params.appId ?? 'catsitter';
 
     return this.prisma.sittingCare.findMany({
@@ -572,11 +572,7 @@ export class SittingService {
   /**
    * Care 완료/미완료 토글
    */
-  async toggleCareComplete(params: {
-    userId: string;
-    careId: string;
-    appId?: string;
-  }) {
+  async toggleCareComplete(params: { userId: string; careId: string; appId?: string }) {
     const { userId, careId } = params;
     const appId = params.appId ?? 'catsitter';
 

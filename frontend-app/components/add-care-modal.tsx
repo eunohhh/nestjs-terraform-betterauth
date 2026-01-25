@@ -1,4 +1,4 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,7 +9,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -19,7 +18,21 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/providers/auth-provider';
 import { useSitting } from '@/providers/sitting-provider';
-import { getBookings, type SittingBooking } from '@/lib/sitting-api';
+import { BookingCreateModal } from '@/components/booking-create-modal';
+import { BookingPickerModal } from '@/components/booking-picker-modal';
+import { ClientCreateModal } from '@/components/client-create-modal';
+import { ClientPickerModal } from '@/components/client-picker-modal';
+import { ContactMethodPickerModal } from '@/components/contact-method-picker-modal';
+import { DateTimePickerModal } from '@/components/date-time-picker-modal';
+import { styles } from '@/components/add-care-modal.styles';
+import {
+  createBooking,
+  createClient,
+  getBookings,
+  getClients,
+  type SittingBooking,
+  type SittingClient,
+} from '@/lib/sitting-api';
 
 type Props = {
   visible: boolean;
@@ -27,7 +40,10 @@ type Props = {
   initialDate?: Date;
 };
 
+const contactMethodOptions = ['카톡', '숨고', '기타'];
+
 export function AddCareModal({ visible, onClose, initialDate }: Props) {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
   const isDark = colorScheme === 'dark';
@@ -37,45 +53,313 @@ export function AddCareModal({ visible, onClose, initialDate }: Props) {
 
   const [bookings, setBookings] = useState<SittingBooking[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<SittingBooking | null>(null);
+  const [clients, setClients] = useState<SittingClient[]>([]);
+  const [selectedClient, setSelectedClient] = useState<SittingClient | null>(null);
   const [careDate, setCareDate] = useState(initialDate ?? new Date());
+  const [bookingDate, setBookingDate] = useState(initialDate ?? new Date());
   const [note, setNote] = useState('');
+  const [clientName, setClientName] = useState('');
+  const [clientCatName, setClientCatName] = useState('');
+  const [clientAddress, setClientAddress] = useState('');
+  const [clientEntryNote, setClientEntryNote] = useState('');
+  const [clientRequirements, setClientRequirements] = useState('');
+  const [expectedAmount, setExpectedAmount] = useState('');
+  const [amount, setAmount] = useState('');
+  const [contactMethod, setContactMethod] = useState<string | null>('카톡');
   const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+  const [isLoadingClients, setIsLoadingClients] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingBooking, setIsSavingBooking] = useState(false);
+  const [isSavingClient, setIsSavingClient] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showBookingPicker, setShowBookingPicker] = useState(false);
+  const [showBookingCreateModal, setShowBookingCreateModal] = useState(false);
+  const [showClientCreateModal, setShowClientCreateModal] = useState(false);
+  const [showClientPicker, setShowClientPicker] = useState(false);
+  const [showContactMethodPicker, setShowContactMethodPicker] = useState(false);
+  const [showBookingDatePicker, setShowBookingDatePicker] = useState(false);
+  const [showBookingTimePicker, setShowBookingTimePicker] = useState(false);
+  const [pendingBookingOpen, setPendingBookingOpen] = useState(false);
+
+
+  // 초기 날짜 설정
+  useEffect(() => {
+    if (initialDate) {
+      setCareDate(initialDate);
+      setBookingDate(initialDate);
+    }
+  }, [initialDate]);
+
+  const loadBookings = useCallback(async () => {
+    if (!accessToken) return [];
+    try {
+      setIsLoadingBookings(true);
+      const data = await getBookings(accessToken, { status: 'CONFIRMED' });
+      setBookings(data);
+      if (data.length > 0) {
+        setSelectedBooking((prev) => {
+          if (prev && data.some((booking) => booking.id === prev.id)) {
+            return prev;
+          }
+          return data[0];
+        });
+      } else {
+        setSelectedBooking(null);
+      }
+      return data;
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || '알 수 없는 오류';
+      Alert.alert('오류', `예약 목록을 불러올 수 없습니다.\n${message}`);
+      console.error('loadBookings error:', error?.response?.data || error);
+      return [];
+    } finally {
+      setIsLoadingBookings(false);
+    }
+  }, [accessToken]);
 
   // Booking 목록 가져오기
   useEffect(() => {
     if (visible && accessToken) {
       loadBookings();
     }
-  }, [visible, accessToken]);
+  }, [visible, accessToken, loadBookings]);
 
-  // 초기 날짜 설정
-  useEffect(() => {
-    if (initialDate) {
-      setCareDate(initialDate);
-    }
-  }, [initialDate]);
-
-  const loadBookings = async () => {
-    if (!accessToken) return;
+  const loadClients = useCallback(async () => {
+    if (!accessToken) return [];
     try {
-      setIsLoadingBookings(true);
-      const data = await getBookings(accessToken, { status: 'CONFIRMED' });
-      setBookings(data);
-      if (data.length > 0 && !selectedBooking) {
-        setSelectedBooking(data[0]);
+      setIsLoadingClients(true);
+      const data = await getClients(accessToken);
+      setClients(data);
+      if (data.length > 0) {
+        setSelectedClient((prev) => {
+          if (prev && data.some((client) => client.id === prev.id)) {
+            return prev;
+          }
+          return data[0];
+        });
+      } else {
+        setSelectedClient(null);
       }
+      return data;
     } catch (error: any) {
       const message = error?.response?.data?.message || error?.message || '알 수 없는 오류';
-      Alert.alert('오류', `예약 목록을 불러올 수 없습니다.\n${message}`);
-      console.error('loadBookings error:', error?.response?.data || error);
+      Alert.alert('오류', `고객 목록을 불러올 수 없습니다.\n${message}`);
+      console.error('loadClients error:', error?.response?.data || error);
+      return [];
     } finally {
-      setIsLoadingBookings(false);
+      setIsLoadingClients(false);
     }
-  };
+  }, [accessToken]);
+
+  const handleOpenBookingCreate = useCallback(async () => {
+    Keyboard.dismiss();
+    setBookingDate(careDate);
+    const data = await loadClients();
+    if (data.length === 0) {
+      setPendingBookingOpen(true);
+      setShowClientCreateModal(true);
+      return;
+    }
+    setShowBookingCreateModal(true);
+  }, [careDate, loadClients]);
+
+  const handleOpenClientCreate = useCallback(() => {
+    setPendingBookingOpen(true);
+    setShowBookingCreateModal(false);
+    setShowClientCreateModal(true);
+  }, []);
+
+  const handleOpenClientPickerFromBookingCreate = useCallback(() => {
+    setPendingBookingOpen(true);
+    setShowBookingCreateModal(false);
+    setShowClientPicker(true);
+  }, []);
+
+  const handleCloseClientPicker = useCallback(() => {
+    setShowClientPicker(false);
+    if (pendingBookingOpen) {
+      setShowBookingCreateModal(true);
+      setPendingBookingOpen(false);
+    }
+  }, [pendingBookingOpen]);
+
+  const handleOpenContactMethodPicker = useCallback(() => {
+    setPendingBookingOpen(true);
+    setShowBookingCreateModal(false);
+    setShowContactMethodPicker(true);
+  }, []);
+
+  const handleCloseContactMethodPicker = useCallback(() => {
+    setShowContactMethodPicker(false);
+    if (pendingBookingOpen) {
+      setShowBookingCreateModal(true);
+      setPendingBookingOpen(false);
+    }
+  }, [pendingBookingOpen]);
+
+  const handleOpenBookingDatePicker = useCallback(() => {
+    setPendingBookingOpen(true);
+    setShowBookingCreateModal(false);
+    setShowBookingDatePicker(true);
+  }, []);
+
+  const handleCloseBookingDatePicker = useCallback(() => {
+    setShowBookingDatePicker(false);
+    if (pendingBookingOpen) {
+      setShowBookingCreateModal(true);
+      setPendingBookingOpen(false);
+    }
+  }, [pendingBookingOpen]);
+
+  const handleOpenBookingTimePicker = useCallback(() => {
+    setPendingBookingOpen(true);
+    setShowBookingCreateModal(false);
+    setShowBookingTimePicker(true);
+  }, []);
+
+  const handleCloseBookingTimePicker = useCallback(() => {
+    setShowBookingTimePicker(false);
+    if (pendingBookingOpen) {
+      setShowBookingCreateModal(true);
+      setPendingBookingOpen(false);
+    }
+  }, [pendingBookingOpen]);
+
+  const handleCloseClientModal = useCallback(() => {
+    setShowClientCreateModal(false);
+    setPendingBookingOpen(false);
+  }, []);
+
+  const handleCreateBooking = useCallback(async () => {
+    if (!accessToken) return;
+    if (!selectedClient) {
+      Alert.alert('알림', '고객을 선택해주세요.');
+      return;
+    }
+
+    if (!expectedAmount.trim()) {
+      Alert.alert('알림', '예상 금액을 입력해주세요.');
+      return;
+    }
+    if (!amount.trim()) {
+      Alert.alert('알림', '결제 금액을 입력해주세요.');
+      return;
+    }
+
+    const expectedValue = Number(expectedAmount.replace(/,/g, '').trim());
+    const amountValue = Number(amount.replace(/,/g, '').trim());
+
+    if (!Number.isFinite(expectedValue) || expectedValue < 0) {
+      Alert.alert('알림', '예상 금액을 숫자로 입력해주세요.');
+      return;
+    }
+    if (!Number.isInteger(expectedValue)) {
+      Alert.alert('알림', '예상 금액은 정수로 입력해주세요.');
+      return;
+    }
+    if (!Number.isFinite(amountValue) || amountValue < 0) {
+      Alert.alert('알림', '결제 금액을 숫자로 입력해주세요.');
+      return;
+    }
+    if (!Number.isInteger(amountValue)) {
+      Alert.alert('알림', '결제 금액은 정수로 입력해주세요.');
+      return;
+    }
+
+    try {
+      setIsSavingBooking(true);
+      // KST 형식으로 변환: "2026-01-25T14:30:00"
+      const kstDate = new Date(bookingDate.getTime() + 9 * 60 * 60 * 1000);
+      const reservationKst = kstDate.toISOString().slice(0, 19);
+
+      const created = await createBooking(accessToken, {
+        clientId: selectedClient.id,
+        reservationKst,
+        expectedAmount: expectedValue,
+        amount: amountValue,
+        contactMethod: contactMethod ?? undefined,
+      });
+
+      const updated = await loadBookings();
+      const matched = updated.find((booking) => booking.id === created.id);
+      setSelectedBooking(matched ?? updated[0] ?? null);
+      setShowBookingCreateModal(false);
+      setShowBookingDatePicker(false);
+      setShowBookingTimePicker(false);
+      setExpectedAmount('');
+      setAmount('');
+      setContactMethod('카톡');
+      Alert.alert('완료', '예약이 추가되었습니다.');
+    } catch (error) {
+      Alert.alert('오류', '예약 추가에 실패했습니다.');
+    } finally {
+      setIsSavingBooking(false);
+    }
+  }, [
+    accessToken,
+    selectedClient,
+    expectedAmount,
+    amount,
+    contactMethod,
+    bookingDate,
+    loadBookings,
+  ]);
+
+  const handleCreateClient = useCallback(async () => {
+    if (!accessToken) return;
+    if (!clientName.trim()) {
+      Alert.alert('알림', '고객 이름을 입력해주세요.');
+      return;
+    }
+    if (!clientCatName.trim()) {
+      Alert.alert('알림', '고양이 이름을 입력해주세요.');
+      return;
+    }
+    if (!clientAddress.trim()) {
+      Alert.alert('알림', '주소를 입력해주세요.');
+      return;
+    }
+
+    try {
+      setIsSavingClient(true);
+      const created = await createClient(accessToken, {
+        clientName: clientName.trim(),
+        catName: clientCatName.trim(),
+        address: clientAddress.trim(),
+        entryNote: clientEntryNote.trim() || undefined,
+        requirements: clientRequirements.trim() || undefined,
+      });
+
+      const updated = await loadClients();
+      const matched = updated.find((client) => client.id === created.id);
+      setSelectedClient(matched ?? created);
+      setClientName('');
+      setClientCatName('');
+      setClientAddress('');
+      setClientEntryNote('');
+      setClientRequirements('');
+      setShowClientCreateModal(false);
+      Alert.alert('완료', '고객이 추가되었습니다.');
+      if (pendingBookingOpen) {
+        setShowBookingCreateModal(true);
+        setPendingBookingOpen(false);
+      }
+    } catch (error) {
+      Alert.alert('오류', '고객 추가에 실패했습니다.');
+    } finally {
+      setIsSavingClient(false);
+    }
+  }, [
+    accessToken,
+    clientName,
+    clientCatName,
+    clientAddress,
+    clientEntryNote,
+    clientRequirements,
+    pendingBookingOpen,
+    loadClients,
+  ]);
 
   const handleSave = useCallback(async () => {
     if (!selectedBooking) {
@@ -106,14 +390,37 @@ export function AddCareModal({ visible, onClose, initialDate }: Props) {
   }, [selectedBooking, careDate, note, createCare, fetchCaresForMonth]);
 
   const handleClose = useCallback(() => {
+    setBookings([]);
+    setClients([]);
     setSelectedBooking(null);
+    setSelectedClient(null);
     setCareDate(new Date());
+    setBookingDate(new Date());
     setNote('');
+    setClientName('');
+    setClientCatName('');
+    setClientAddress('');
+    setClientEntryNote('');
+    setClientRequirements('');
+    setExpectedAmount('');
+    setAmount('');
     setShowDatePicker(false);
     setShowTimePicker(false);
     setShowBookingPicker(false);
+    setShowBookingCreateModal(false);
+    setShowClientCreateModal(false);
+    setShowClientPicker(false);
+    setShowContactMethodPicker(false);
+    setShowBookingDatePicker(false);
+    setShowBookingTimePicker(false);
+    setPendingBookingOpen(false);
     onClose();
   }, [onClose]);
+
+  const handleGoToBookingList = useCallback(() => {
+    handleClose();
+    router.push('/cat-sitting/bookings');
+  }, [handleClose, router]);
 
   const handleDateChange = (event: any, date?: Date) => {
     if (Platform.OS === 'android') {
@@ -134,6 +441,28 @@ export function AddCareModal({ visible, onClose, initialDate }: Props) {
       const newDate = new Date(careDate);
       newDate.setHours(date.getHours(), date.getMinutes());
       setCareDate(newDate);
+    }
+  };
+
+  const handleBookingDateChange = (event: any, date?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowBookingDatePicker(false);
+    }
+    if (date) {
+      const newDate = new Date(bookingDate);
+      newDate.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+      setBookingDate(newDate);
+    }
+  };
+
+  const handleBookingTimeChange = (event: any, date?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowBookingTimePicker(false);
+    }
+    if (date) {
+      const newDate = new Date(bookingDate);
+      newDate.setHours(date.getHours(), date.getMinutes());
+      setBookingDate(newDate);
     }
   };
 
@@ -178,7 +507,7 @@ export function AddCareModal({ visible, onClose, initialDate }: Props) {
               }}
             >
               {/* 헤더 */}
-            <View style={styles.header}>
+              <View style={styles.header}>
               <Text style={[styles.title, { color: theme.text }]}>케어 추가</Text>
               <Pressable onPress={handleClose}>
                 <Text style={[styles.closeButton, { color: theme.tint }]}>취소</Text>
@@ -281,276 +610,169 @@ export function AddCareModal({ visible, onClose, initialDate }: Props) {
               </View>
             </ScrollView>
 
-            {/* 저장 버튼 */}
-            <Pressable
-              style={[
-                styles.saveButton,
-                { backgroundColor: theme.tint },
-                isSaving && { opacity: 0.6 },
-              ]}
-              onPress={handleSave}
-              disabled={isSaving || !selectedBooking}
-            >
-              {isSaving ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.saveButtonText}>저장</Text>
-              )}
-            </Pressable>
+            {/* 저장/예약 추가 버튼 */}
+            <View style={styles.actionRow}>
+              <Pressable
+                style={[
+                  styles.actionButton,
+                  styles.secondaryButton,
+                  {
+                    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                    borderColor: isDark ? '#4B5563' : '#E5E7EB',
+                  },
+                  isLoadingBookings && { opacity: 0.6 },
+                ]}
+                onPress={handleGoToBookingList}
+                disabled={isLoadingBookings}
+              >
+                {isLoadingBookings ? (
+                  <ActivityIndicator size="small" color={theme.tint} />
+                ) : (
+                  <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
+                    예약 추가
+                  </Text>
+                )}
+              </Pressable>
+              <View style={styles.actionSpacer} />
+              <Pressable
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: theme.tint },
+                  (isSaving || !selectedBooking) && { opacity: 0.6 },
+                ]}
+                onPress={handleSave}
+                disabled={isSaving || !selectedBooking}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveButtonText}>저장</Text>
+                )}
+              </Pressable>
+            </View>
           </Pressable>
         </View>
       </Pressable>
 
-      {/* 예약 선택 피커 */}
-      <Modal
+      <BookingPickerModal
         visible={showBookingPicker}
-        animationType="fade"
-        transparent
-        onRequestClose={() => setShowBookingPicker(false)}
-      >
-        <Pressable
-          style={styles.pickerOverlay}
-          onPress={() => setShowBookingPicker(false)}
-        >
-          <View
-            style={[
-              styles.pickerContent,
-              { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' },
-            ]}
-          >
-            <Pressable onPress={(e) => e.stopPropagation()}>
-              <View style={styles.header}>
-                <Text style={[styles.title, { color: theme.text }]}>예약 선택</Text>
-                <Pressable onPress={() => setShowBookingPicker(false)}>
-                  <Text style={[styles.closeButton, { color: theme.tint }]}>완료</Text>
-                </Pressable>
-              </View>
-              <ScrollView style={styles.bookingList}>
-                {bookings.map((booking) => (
-                  <Pressable
-                    key={booking.id}
-                    style={[
-                      styles.bookingItem,
-                      {
-                        backgroundColor:
-                          selectedBooking?.id === booking.id
-                            ? theme.tint + '20'
-                            : 'transparent',
-                      },
-                    ]}
-                    onPress={() => {
-                      setSelectedBooking(booking);
-                      setShowBookingPicker(false);
-                    }}
-                  >
-                    <Text style={[styles.bookingName, { color: theme.text }]}>
-                      {booking.client?.clientName}
-                    </Text>
-                    <Text style={[styles.bookingCat, { color: theme.icon }]}>
-                      {booking.catName} · {booking.addressSnapshot}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
+        onClose={() => setShowBookingPicker(false)}
+        bookings={bookings}
+        selectedBooking={selectedBooking}
+        onSelect={setSelectedBooking}
+        theme={theme}
+        isDark={isDark}
+      />
 
-      {/* 날짜 피커 */}
-      {showDatePicker && (
-        <Modal
-          visible={showDatePicker}
-          animationType="fade"
-          transparent
-          onRequestClose={() => setShowDatePicker(false)}
-        >
-          <Pressable
-            style={styles.pickerOverlay}
-            onPress={() => setShowDatePicker(false)}
-          >
-            <View
-              style={[
-                styles.datePickerContent,
-                { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' },
-              ]}
-            >
-              <Pressable onPress={(e) => e.stopPropagation()}>
-                <View style={styles.header}>
-                  <Text style={[styles.title, { color: theme.text }]}>날짜 선택</Text>
-                  <Pressable onPress={() => setShowDatePicker(false)}>
-                    <Text style={[styles.closeButton, { color: theme.tint }]}>완료</Text>
-                  </Pressable>
-                </View>
-                <DateTimePicker
-                  value={careDate}
-                  mode="date"
-                  display="spinner"
-                  onChange={handleDateChange}
-                  locale="ko-KR"
-                  themeVariant={isDark ? 'dark' : 'light'}
-                />
-              </Pressable>
-            </View>
-          </Pressable>
-        </Modal>
-      )}
+      <BookingCreateModal
+        visible={showBookingCreateModal}
+        onClose={() => setShowBookingCreateModal(false)}
+        isDark={isDark}
+        theme={theme}
+        clients={clients}
+        selectedClient={selectedClient}
+        isLoadingClients={isLoadingClients}
+        onOpenClientPicker={handleOpenClientPickerFromBookingCreate}
+        onOpenClientCreate={handleOpenClientCreate}
+        onOpenContactMethodPicker={handleOpenContactMethodPicker}
+        bookingDate={bookingDate}
+        onOpenDatePicker={handleOpenBookingDatePicker}
+        onOpenTimePicker={handleOpenBookingTimePicker}
+        contactMethod={contactMethod}
+        expectedAmount={expectedAmount}
+        onChangeExpectedAmount={setExpectedAmount}
+        amount={amount}
+        onChangeAmount={setAmount}
+        isSaving={isSavingBooking}
+        onSave={handleCreateBooking}
+        formatDate={formatDate}
+        formatTime={formatTime}
+      />
 
-      {/* 시간 피커 */}
-      {showTimePicker && (
-        <Modal
-          visible={showTimePicker}
-          animationType="fade"
-          transparent
-          onRequestClose={() => setShowTimePicker(false)}
-        >
-          <Pressable
-            style={styles.pickerOverlay}
-            onPress={() => setShowTimePicker(false)}
-          >
-            <View
-              style={[
-                styles.datePickerContent,
-                { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' },
-              ]}
-            >
-              <Pressable onPress={(e) => e.stopPropagation()}>
-                <View style={styles.header}>
-                  <Text style={[styles.title, { color: theme.text }]}>시간 선택</Text>
-                  <Pressable onPress={() => setShowTimePicker(false)}>
-                    <Text style={[styles.closeButton, { color: theme.tint }]}>완료</Text>
-                  </Pressable>
-                </View>
-                <DateTimePicker
-                  value={careDate}
-                  mode="time"
-                  display="spinner"
-                  onChange={handleTimeChange}
-                  locale="ko-KR"
-                  themeVariant={isDark ? 'dark' : 'light'}
-                />
-              </Pressable>
-            </View>
-          </Pressable>
-        </Modal>
-      )}
+      <ContactMethodPickerModal
+        visible={showContactMethodPicker}
+        onClose={handleCloseContactMethodPicker}
+        options={contactMethodOptions}
+        selected={contactMethod}
+        onSelect={setContactMethod}
+        theme={theme}
+        isDark={isDark}
+      />
+
+      <ClientPickerModal
+        visible={showClientPicker}
+        onClose={handleCloseClientPicker}
+        clients={clients}
+        selectedClient={selectedClient}
+        onSelect={setSelectedClient}
+        theme={theme}
+        isDark={isDark}
+      />
+
+      <ClientCreateModal
+        visible={showClientCreateModal}
+        onClose={handleCloseClientModal}
+        isDark={isDark}
+        theme={theme}
+        clientName={clientName}
+        onChangeClientName={setClientName}
+        clientCatName={clientCatName}
+        onChangeClientCatName={setClientCatName}
+        clientAddress={clientAddress}
+        onChangeClientAddress={setClientAddress}
+        clientEntryNote={clientEntryNote}
+        onChangeClientEntryNote={setClientEntryNote}
+        clientRequirements={clientRequirements}
+        onChangeClientRequirements={setClientRequirements}
+        isSaving={isSavingClient}
+        onSave={handleCreateClient}
+      />
+
+      <DateTimePickerModal
+        visible={showBookingDatePicker}
+        title="예약 날짜"
+        value={bookingDate}
+        mode="date"
+        onChange={handleBookingDateChange}
+        onClose={handleCloseBookingDatePicker}
+        isDark={isDark}
+        theme={theme}
+      />
+
+      <DateTimePickerModal
+        visible={showBookingTimePicker}
+        title="예약 시간"
+        value={bookingDate}
+        mode="time"
+        onChange={handleBookingTimeChange}
+        onClose={handleCloseBookingTimePicker}
+        isDark={isDark}
+        theme={theme}
+      />
+
+      <DateTimePickerModal
+        visible={showDatePicker}
+        title="날짜 선택"
+        value={careDate}
+        mode="date"
+        onChange={handleDateChange}
+        onClose={() => setShowDatePicker(false)}
+        isDark={isDark}
+        theme={theme}
+      />
+
+      <DateTimePickerModal
+        visible={showTimePicker}
+        title="시간 선택"
+        value={careDate}
+        mode="time"
+        onChange={handleTimeChange}
+        onClose={() => setShowTimePicker(false)}
+        isDark={isDark}
+        theme={theme}
+      />
+
       </KeyboardAvoidingView>
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  keyboardAvoid: {
-    flex: 1,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  content: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 16,
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-    maxHeight: '80%',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  closeButton: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  form: {
-    maxHeight: 400,
-  },
-  field: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  selectButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  selectButtonText: {
-    fontSize: 16,
-  },
-  textInput: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    fontSize: 16,
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  emptyText: {
-    fontSize: 14,
-    fontStyle: 'italic',
-  },
-  saveButton: {
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  pickerOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pickerContent: {
-    borderRadius: 20,
-    padding: 16,
-    width: '90%',
-    maxHeight: '60%',
-  },
-  datePickerContent: {
-    borderRadius: 20,
-    padding: 16,
-    width: '90%',
-  },
-  bookingList: {
-    maxHeight: 300,
-  },
-  bookingItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 4,
-  },
-  bookingName: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  bookingCat: {
-    fontSize: 14,
-    marginTop: 2,
-  },
-});

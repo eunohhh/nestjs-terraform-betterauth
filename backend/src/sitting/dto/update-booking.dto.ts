@@ -17,6 +17,10 @@ export class UpdateSittingBookingDto {
 
   @IsOptional()
   @IsString()
+  contactMethod?: string;
+
+  @IsOptional()
+  @IsString()
   catName?: string;
 
   @IsOptional()

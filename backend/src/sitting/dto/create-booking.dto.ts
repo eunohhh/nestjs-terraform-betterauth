@@ -16,6 +16,11 @@ export class CreateSittingBookingDto {
   @Min(0)
   amount!: number;
 
+  // 선택: 문의/유입 채널 (예: "카톡", "숨고", "기타")
+  @IsOptional()
+  @IsString()
+  contactMethod?: string;
+
   // 선택: entryNoteSnapshot을 강제로 덮고 싶다면
   @IsOptional()
   @IsString()
