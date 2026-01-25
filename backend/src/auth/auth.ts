@@ -50,16 +50,12 @@ export const auth = betterAuth({
       // 모든 테이블의 ID를 UUID v4로 생성
       generateId: () => crypto.randomUUID(),
     },
-    defaultCookieAttributes: {
-      secure: process.env.NODE_ENV === 'production',
-      domain:
-        process.env.NODE_ENV === 'production'
-          ? `.${new URL(process.env.FRONTEND_URL ?? '').hostname.replace('api.', '')}`
-          : undefined,
-      httpOnly: true,
-      sameSite: 'lax',
-      path: '/',
-    },
+    // defaultCookieAttributes: {
+    //   secure: true, // Always true for HTTPS (ngrok)
+    //   sameSite: 'lax',
+    //   httpOnly: true,
+    //   path: '/',
+    // },
   },
   trustedOrigins: [
     process.env.BETTER_AUTH_URL,

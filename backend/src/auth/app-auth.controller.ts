@@ -47,6 +47,18 @@ export class AppAuthController {
     return this.appAuthService.createLoginCode(session.user.id);
   }
 
+  @Post('admin/token')
+  async getAdminToken(@Req() request: Request) {
+    const headers = this.toHeaders(request);
+    const session = await auth.api.getSession({ headers });
+
+    if (!session || !('user' in session) || !session.user?.id) {
+      throw new UnauthorizedException('Not logged in');
+    }
+
+    return this.appAuthService.createAccessToken(session.user.id);
+  }
+
   @Get('callback')
   @AllowAnonymous()
   async callback(@Req() request: Request, @Res() response: Response) {

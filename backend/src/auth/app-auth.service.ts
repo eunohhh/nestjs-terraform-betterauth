@@ -56,6 +56,20 @@ export class AppAuthService {
     };
   }
 
+  async createAccessToken(userId: string) {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    const accessToken = await this.signToken(userId);
+    return {
+      accessToken,
+      tokenType: 'Bearer',
+      expiresIn: this.expiresInSeconds,
+      user,
+    };
+  }
+
   async createLoginCode(userId: string) {
     const code = randomUUID();
     const expiresAt = new Date(Date.now() + APP_LOGIN_CODE_TTL_SECONDS * 1000);
