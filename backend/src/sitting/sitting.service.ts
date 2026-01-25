@@ -408,7 +408,12 @@ export class SittingService {
       where: { id: careId, appId },
       include: {
         booking: {
-          select: { id: true, client: { select: { userId: true } } },
+          select: {
+            id: true,
+            catName: true,
+            addressSnapshot: true,
+            client: { select: { userId: true, address: true, clientName: true } },
+          },
         },
       },
     });

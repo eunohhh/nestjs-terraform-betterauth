@@ -161,7 +161,7 @@ export default function CareDetailScreen() {
       <View style={styles.section}>
         <Text style={[styles.sectionLabel, { color: theme.icon }]}>주소</Text>
         <Text style={[styles.sectionValue, { color: theme.text }]}>
-          {care.booking?.addressSnapshot || '-'}
+          {care.booking?.client?.address || '-'}
         </Text>
       </View>
 

@@ -54,6 +54,7 @@ export type SittingCare = {
       id: string;
       clientName: string;
       catName: string;
+      address: string;
     };
   };
 };
