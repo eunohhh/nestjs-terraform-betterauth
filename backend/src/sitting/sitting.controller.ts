@@ -127,6 +127,12 @@ export class SittingController {
     });
   }
 
+  @Delete('/bookings/:bookingId')
+  async deleteBooking(@Req() req: any, @Param('bookingId') bookingId: string) {
+    const userId = req.appUserId;
+    return this.sitting.deleteBooking({ userId, bookingId });
+  }
+
   // ==================== CARE ====================
 
   @Post('/cares')

@@ -354,6 +354,45 @@ export class SittingService {
     });
   }
 
+  async deleteBooking(params: { userId: string; bookingId: string; appId?: string }) {
+    const { userId, bookingId } = params;
+    const appId = params.appId ?? 'catsitter';
+
+    const booking = await this.prisma.sittingBooking.findFirst({
+      where: { id: bookingId, appId },
+      select: {
+        id: true,
+        client: { select: { userId: true } },
+        bookingStatus: true,
+        cares: { select: { id: true } },
+      },
+    });
+
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.client.userId !== userId) throw new ForbiddenException('Not your booking');
+
+    return this.prisma.$transaction(async (tx) => {
+      // Delete related cares first
+      if (booking.cares.length > 0) {
+        await tx.sittingCare.deleteMany({
+          where: { bookingId },
+        });
+      }
+
+      // Delete audit logs
+      await tx.sittingBookingAuditLog.deleteMany({
+        where: { bookingId },
+      });
+
+      // Delete the booking
+      await tx.sittingBooking.delete({
+        where: { id: bookingId },
+      });
+
+      return { success: true };
+    });
+  }
+
   // ==================== CARE ====================
 
   async createCare(params: { userId: string; dto: CreateSittingCareDto; appId?: string }) {
