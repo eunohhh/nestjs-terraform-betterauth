@@ -2,18 +2,66 @@
 
 import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
+import { Checkbox } from '@/components/ui/checkbox';
 import { SittingBooking, SittingCare, SittingClient } from '@/lib/apis/api-client';
 
+function truncate(text: string | null | undefined, maxLength = 30): string {
+  if (!text) return '';
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+}
+
 export const clientColumns: ColumnDef<SittingClient>[] = [
+  {
+    id: 'select',
+    header: '',
+    cell: ({ row, table }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => {
+          table.resetRowSelection();
+          row.toggleSelected(!!value);
+        }}
+        onClick={(e) => e.stopPropagation()}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
   { accessorKey: 'id', header: 'ID' },
   { accessorKey: 'clientName', header: 'Name' },
   { accessorKey: 'catName', header: 'Cat' },
   { accessorKey: 'address', header: 'Address' },
-  { accessorKey: 'entryNote', header: 'Entry Note' },
-  { accessorKey: 'requirements', header: 'Requirements' },
+  {
+    accessorKey: 'entryNote',
+    header: 'Entry Note',
+    cell: ({ row }) => truncate(row.getValue('entryNote')),
+  },
+  {
+    accessorKey: 'requirements',
+    header: 'Requirements',
+    cell: ({ row }) => truncate(row.getValue('requirements')),
+  },
 ];
 
 export const bookingColumns: ColumnDef<SittingBooking>[] = [
+  {
+    id: 'select',
+    header: '',
+    cell: ({ row, table }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => {
+          table.resetRowSelection();
+          row.toggleSelected(!!value);
+        }}
+        onClick={(e) => e.stopPropagation()}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
   { accessorKey: 'id', header: 'ID' },
   { accessorKey: 'bookingStatus', header: 'Status' },
   { accessorKey: 'paymentStatus', header: 'Payment' },
@@ -34,13 +82,34 @@ export const bookingColumns: ColumnDef<SittingBooking>[] = [
 ];
 
 export const careColumns: ColumnDef<SittingCare>[] = [
+  {
+    id: 'select',
+    header: '',
+    cell: ({ row, table }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => {
+          table.resetRowSelection();
+          row.toggleSelected(!!value);
+        }}
+        onClick={(e) => e.stopPropagation()}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
   { accessorKey: 'id', header: 'ID' },
   {
     accessorKey: 'careTime',
     header: 'Date',
     cell: ({ row }) => format(new Date(row.getValue('careTime')), 'yyyy-MM-dd HH:mm'),
   },
-  { accessorKey: 'note', header: 'Note' },
+  {
+    accessorKey: 'note',
+    header: 'Note',
+    cell: ({ row }) => truncate(row.getValue('note')),
+  },
   { accessorKey: 'booking.client.clientName', header: 'Client' },
   { accessorKey: 'booking.catName', header: 'Cat' },
   {

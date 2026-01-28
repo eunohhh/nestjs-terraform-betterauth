@@ -9,10 +9,20 @@ import {
   startOfMonth,
   subMonths,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { EditBookingDialog, EditCareDialog, EditClientDialog } from '@/components/sitting';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  bookingColumns,
+  careColumns,
+  clientColumns,
+  CreateBookingDialog,
+  CreateCareDialog,
+  CreateClientDialog,
+  EditBookingDialog,
+  EditCareDialog,
+  EditClientDialog,
+} from '@/components/sitting';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
 import {
@@ -23,10 +33,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useSittingBookings, useSittingCaresForCalendar, useSittingClients } from '@/hooks/queries';
+import {
+  useDeleteBooking,
+  useDeleteCare,
+  useDeleteClient,
+  useSittingBookings,
+  useSittingCaresForCalendar,
+  useSittingClients,
+} from '@/hooks/queries';
 import { SittingBooking, SittingCare, SittingClient } from '@/lib/apis/api-client';
 import { authClient } from '@/lib/auth-client';
-import { bookingColumns, careColumns, clientColumns } from '../components/sitting/columns';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -34,13 +50,28 @@ export default function DashboardPage() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // Dialog states
+  // Edit Dialog states
   const [selectedClient, setSelectedClient] = useState<SittingClient | null>(null);
   const [clientDialogOpen, setClientDialogOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<SittingBooking | null>(null);
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
   const [selectedCare, setSelectedCare] = useState<SittingCare | null>(null);
   const [careDialogOpen, setCareDialogOpen] = useState(false);
+
+  // Create Dialog states
+  const [createClientOpen, setCreateClientOpen] = useState(false);
+  const [createBookingOpen, setCreateBookingOpen] = useState(false);
+  const [createCareOpen, setCreateCareOpen] = useState(false);
+
+  // Selection states
+  const [selectedClients, setSelectedClients] = useState<SittingClient[]>([]);
+  const [selectedBookings, setSelectedBookings] = useState<SittingBooking[]>([]);
+  const [selectedCares, setSelectedCares] = useState<SittingCare[]>([]);
+
+  // Mutations
+  const deleteClient = useDeleteClient();
+  const deleteBooking = useDeleteBooking();
+  const deleteCare = useDeleteCare();
 
   // Queries
   const { data: clients, isLoading: clientsLoading } = useSittingClients();
@@ -104,6 +135,41 @@ export default function DashboardPage() {
     setCareDialogOpen(true);
   };
 
+  // Selection handlers
+  const handleClientSelection = useCallback((rows: SittingClient[]) => {
+    setSelectedClients(rows);
+  }, []);
+
+  const handleBookingSelection = useCallback((rows: SittingBooking[]) => {
+    setSelectedBookings(rows);
+  }, []);
+
+  const handleCareSelection = useCallback((rows: SittingCare[]) => {
+    setSelectedCares(rows);
+  }, []);
+
+  // Delete handlers
+  const handleDeleteClient = async () => {
+    if (selectedClients.length === 0) return;
+    if (!confirm('Are you sure you want to delete this client?')) return;
+    await deleteClient.mutateAsync(selectedClients[0].id);
+    setSelectedClients([]);
+  };
+
+  const handleDeleteBooking = async () => {
+    if (selectedBookings.length === 0) return;
+    if (!confirm('Are you sure you want to delete this booking? All related cares will also be deleted.')) return;
+    await deleteBooking.mutateAsync(selectedBookings[0].id);
+    setSelectedBookings([]);
+  };
+
+  const handleDeleteCare = async () => {
+    if (selectedCares.length === 0) return;
+    if (!confirm('Are you sure you want to delete this care?')) return;
+    await deleteCare.mutateAsync(selectedCares[0].id);
+    setSelectedCares([]);
+  };
+
   if (isPending || !isAuthorized) {
     return <div className="p-8">Loading...</div>;
   }
@@ -131,8 +197,26 @@ export default function DashboardPage() {
 
         <TabsContent value="clients">
           <div className="rounded-md border p-4">
-            <h2 className="text-xl font-semibold mb-4">Clients</h2>
-            <p className="text-sm text-muted-foreground mb-4">Click on a row to edit</p>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-semibold">Clients</h2>
+                <p className="text-sm text-muted-foreground">Click on a row to edit</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button onClick={() => setCreateClientOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteClient}
+                  disabled={selectedClients.length === 0 || deleteClient.isPending}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
+            </div>
             {clientsLoading ? (
               <div>Loading...</div>
             ) : (
@@ -140,6 +224,7 @@ export default function DashboardPage() {
                 columns={clientColumns}
                 data={clients || []}
                 onRowClick={handleClientClick}
+                onSelectionChange={handleClientSelection}
               />
             )}
           </div>
@@ -147,8 +232,26 @@ export default function DashboardPage() {
 
         <TabsContent value="bookings">
           <div className="rounded-md border p-4">
-            <h2 className="text-xl font-semibold mb-4">Bookings</h2>
-            <p className="text-sm text-muted-foreground mb-4">Click on a row to edit</p>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-semibold">Bookings</h2>
+                <p className="text-sm text-muted-foreground">Click on a row to edit</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button onClick={() => setCreateBookingOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteBooking}
+                  disabled={selectedBookings.length === 0 || deleteBooking.isPending}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
+            </div>
             {bookingsLoading ? (
               <div>Loading...</div>
             ) : (
@@ -156,6 +259,7 @@ export default function DashboardPage() {
                 columns={bookingColumns}
                 data={bookings || []}
                 onRowClick={handleBookingClick}
+                onSelectionChange={handleBookingSelection}
               />
             )}
           </div>
@@ -204,12 +308,30 @@ export default function DashboardPage() {
                 <Button variant="outline" size="icon" onClick={handleNextMonth}>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
+
+                <Button onClick={() => setCreateCareOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteCare}
+                  disabled={selectedCares.length === 0 || deleteCare.isPending}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
               </div>
             </div>
             {caresLoading ? (
               <div>Loading...</div>
             ) : (
-              <DataTable columns={careColumns} data={cares || []} onRowClick={handleCareClick} />
+              <DataTable
+                columns={careColumns}
+                data={cares || []}
+                onRowClick={handleCareClick}
+                onSelectionChange={handleCareSelection}
+              />
             )}
           </div>
         </TabsContent>
@@ -227,6 +349,11 @@ export default function DashboardPage() {
         onOpenChange={setBookingDialogOpen}
       />
       <EditCareDialog care={selectedCare} open={careDialogOpen} onOpenChange={setCareDialogOpen} />
+
+      {/* Create Dialogs */}
+      <CreateClientDialog open={createClientOpen} onOpenChange={setCreateClientOpen} />
+      <CreateBookingDialog open={createBookingOpen} onOpenChange={setCreateBookingOpen} />
+      <CreateCareDialog open={createCareOpen} onOpenChange={setCreateCareOpen} />
     </div>
   );
 }

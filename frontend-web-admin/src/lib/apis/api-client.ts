@@ -60,6 +60,28 @@ export interface UpdateCareDto {
   note?: string;
 }
 
+export interface CreateClientDto {
+  clientName: string;
+  catName: string;
+  address: string;
+  entryNote?: string;
+  requirements?: string;
+}
+
+export interface CreateBookingDto {
+  clientId: string;
+  reservationKst: string;
+  expectedAmount: number;
+  amount: number;
+  contactMethod?: string;
+}
+
+export interface CreateCareDto {
+  bookingId: string;
+  careTimeKst: string;
+  note?: string;
+}
+
 export const api = {
   auth: {
     // Exchange Better Auth Session for App JWT
@@ -121,6 +143,30 @@ export const api = {
         `/sitting/cares/${careId}`,
         dto
       );
+      return response.data;
+    },
+    createClient: async (dto: CreateClientDto) => {
+      const response = await axiosInstance.post<SittingClient>("/sitting/clients", dto);
+      return response.data;
+    },
+    deleteClient: async (clientId: string) => {
+      const response = await axiosInstance.delete(`/sitting/clients/${clientId}`);
+      return response.data;
+    },
+    createBooking: async (dto: CreateBookingDto) => {
+      const response = await axiosInstance.post<SittingBooking>("/sitting/bookings", dto);
+      return response.data;
+    },
+    deleteBooking: async (bookingId: string) => {
+      const response = await axiosInstance.delete(`/sitting/bookings/${bookingId}`);
+      return response.data;
+    },
+    createCare: async (dto: CreateCareDto) => {
+      const response = await axiosInstance.post<SittingCare>("/sitting/cares", dto);
+      return response.data;
+    },
+    deleteCare: async (careId: string) => {
+      const response = await axiosInstance.delete(`/sitting/cares/${careId}`);
       return response.data;
     },
   },
