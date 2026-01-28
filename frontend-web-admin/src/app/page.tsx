@@ -1,6 +1,5 @@
 'use client';
 
-import { ColumnDef } from '@tanstack/react-table';
 import {
   addMonths,
   endOfMonth,
@@ -13,6 +12,7 @@ import {
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { EditBookingDialog, EditCareDialog, EditClientDialog } from '@/components/sitting';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
 import {
@@ -24,72 +24,23 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSittingBookings, useSittingCaresForCalendar, useSittingClients } from '@/hooks/queries';
+import { SittingBooking, SittingCare, SittingClient } from '@/lib/apis/api-client';
 import { authClient } from '@/lib/auth-client';
-
-// Columns Definitions
-const clientColumns: ColumnDef<any>[] = [
-  { accessorKey: 'id', header: 'ID' },
-  { accessorKey: 'clientName', header: 'Name' },
-  { accessorKey: 'catName', header: 'Cat' },
-  { accessorKey: 'address', header: 'Address' },
-  { accessorKey: 'entryNote', header: 'Entry Note' },
-  { accessorKey: 'requirements', header: 'Requirements' },
-];
-
-const bookingColumns: ColumnDef<any>[] = [
-  { accessorKey: 'id', header: 'ID' },
-  { accessorKey: 'bookingStatus', header: 'Status' },
-  { accessorKey: 'paymentStatus', header: 'Payment' },
-  { accessorKey: 'client.clientName', header: 'Client' },
-
-  { accessorKey: 'contactMethod', header: 'Contact Method' },
-  { accessorKey: 'expectedAmount', header: 'Expected Amount' },
-  { accessorKey: 'amount', header: 'Amount' },
-  { accessorKey: 'paymentStatus', header: 'Payment Status' },
-  {
-    accessorKey: 'reservationDate',
-    header: 'Reservation Date',
-    cell: ({ row }) => format(new Date(row.getValue('reservationDate')), 'yyyy-MM-dd HH:mm'),
-  },
-  {
-    accessorKey: 'createdAt',
-    header: 'Created At',
-    cell: ({ row }) => format(new Date(row.getValue('createdAt')), 'yyyy-MM-dd HH:mm'),
-  },
-];
-
-const careColumns: ColumnDef<any>[] = [
-  { accessorKey: 'id', header: 'ID' },
-  {
-    accessorKey: 'careTime',
-    header: 'Date',
-    cell: ({ row }) => format(new Date(row.getValue('careTime')), 'yyyy-MM-dd HH:mm'),
-  },
-  { accessorKey: 'note', header: 'Note' },
-  { accessorKey: 'booking.client.clientName', header: 'Client' },
-  { accessorKey: 'booking.catName', header: 'Cat' },
-  {
-    accessorKey: 'completedAt',
-    header: 'Completed At',
-    cell: ({ row }) => format(new Date(row.getValue('completedAt')), 'yyyy-MM-dd HH:mm'),
-  },
-  {
-    accessorKey: 'createdAt',
-    header: 'Created At',
-    cell: ({ row }) => format(new Date(row.getValue('createdAt')), 'yyyy-MM-dd HH:mm'),
-  },
-  {
-    accessorKey: 'updatedAt',
-    header: 'Updated At',
-    cell: ({ row }) => format(new Date(row.getValue('updatedAt')), 'yyyy-MM-dd HH:mm'),
-  },
-];
+import { bookingColumns, careColumns, clientColumns } from '../components/sitting/columns';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+
+  // Dialog states
+  const [selectedClient, setSelectedClient] = useState<SittingClient | null>(null);
+  const [clientDialogOpen, setClientDialogOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<SittingBooking | null>(null);
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
+  const [selectedCare, setSelectedCare] = useState<SittingCare | null>(null);
+  const [careDialogOpen, setCareDialogOpen] = useState(false);
 
   // Queries
   const { data: clients, isLoading: clientsLoading } = useSittingClients();
@@ -123,10 +74,8 @@ export default function DashboardPage() {
       if (!session) {
         router.push('/login');
       } else {
-        // Check role (assuming role is in user object)
         if (session.user.role !== 'admin') {
-          // alert("Access denied. Admin only.");
-          // router.push("/login"); // Or show unauthorized view
+          // Access denied handling if needed
         }
         setIsAuthorized(true);
       }
@@ -139,11 +88,26 @@ export default function DashboardPage() {
     router.push('/login');
   };
 
+  // Row click handlers
+  const handleClientClick = (client: SittingClient) => {
+    setSelectedClient(client);
+    setClientDialogOpen(true);
+  };
+
+  const handleBookingClick = (booking: SittingBooking) => {
+    setSelectedBooking(booking);
+    setBookingDialogOpen(true);
+  };
+
+  const handleCareClick = (care: SittingCare) => {
+    setSelectedCare(care);
+    setCareDialogOpen(true);
+  };
+
   if (isPending || !isAuthorized) {
     return <div className="p-8">Loading...</div>;
   }
 
-  console.log(cares);
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
@@ -168,10 +132,15 @@ export default function DashboardPage() {
         <TabsContent value="clients">
           <div className="rounded-md border p-4">
             <h2 className="text-xl font-semibold mb-4">Clients</h2>
+            <p className="text-sm text-muted-foreground mb-4">Click on a row to edit</p>
             {clientsLoading ? (
               <div>Loading...</div>
             ) : (
-              <DataTable columns={clientColumns} data={clients || []} />
+              <DataTable
+                columns={clientColumns}
+                data={clients || []}
+                onRowClick={handleClientClick}
+              />
             )}
           </div>
         </TabsContent>
@@ -179,10 +148,15 @@ export default function DashboardPage() {
         <TabsContent value="bookings">
           <div className="rounded-md border p-4">
             <h2 className="text-xl font-semibold mb-4">Bookings</h2>
+            <p className="text-sm text-muted-foreground mb-4">Click on a row to edit</p>
             {bookingsLoading ? (
               <div>Loading...</div>
             ) : (
-              <DataTable columns={bookingColumns} data={bookings || []} />
+              <DataTable
+                columns={bookingColumns}
+                data={bookings || []}
+                onRowClick={handleBookingClick}
+              />
             )}
           </div>
         </TabsContent>
@@ -190,7 +164,10 @@ export default function DashboardPage() {
         <TabsContent value="cares">
           <div className="rounded-md border p-4">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Cares</h2>
+              <div>
+                <h2 className="text-xl font-semibold">Cares</h2>
+                <p className="text-sm text-muted-foreground">Click on a row to edit</p>
+              </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="icon" onClick={handlePrevMonth}>
                   <ChevronLeft className="h-4 w-4" />
@@ -232,11 +209,24 @@ export default function DashboardPage() {
             {caresLoading ? (
               <div>Loading...</div>
             ) : (
-              <DataTable columns={careColumns} data={cares || []} />
+              <DataTable columns={careColumns} data={cares || []} onRowClick={handleCareClick} />
             )}
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Dialogs */}
+      <EditClientDialog
+        client={selectedClient}
+        open={clientDialogOpen}
+        onOpenChange={setClientDialogOpen}
+      />
+      <EditBookingDialog
+        booking={selectedBooking}
+        open={bookingDialogOpen}
+        onOpenChange={setBookingDialogOpen}
+      />
+      <EditCareDialog care={selectedCare} open={careDialogOpen} onOpenChange={setCareDialogOpen} />
     </div>
   );
 }
