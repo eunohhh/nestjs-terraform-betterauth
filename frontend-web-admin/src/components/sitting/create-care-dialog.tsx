@@ -51,8 +51,11 @@ export function CreateCareDialog({ open, onOpenChange }: CreateCareDialogProps) 
 
   const isValid = formData.bookingId && formData.careTimeKst;
 
-  // Filter to show only active bookings (CONFIRMED status)
-  const activeBookings = bookings?.filter((b) => b.bookingStatus === 'CONFIRMED') || [];
+  // Filter to exclude CANCELLED and COMPLETED bookings
+  const activeBookings =
+    bookings?.filter(
+      (b) => b.bookingStatus !== 'CANCELLED' && b.bookingStatus !== 'COMPLETED'
+    ) || [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
