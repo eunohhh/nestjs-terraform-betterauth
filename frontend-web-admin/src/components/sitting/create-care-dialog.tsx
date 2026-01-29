@@ -1,5 +1,6 @@
 'use client';
 
+import { format } from 'date-fns';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -73,7 +74,7 @@ export function CreateCareDialog({ open, onOpenChange }: CreateCareDialogProps) 
               <SelectContent>
                 {activeBookings.map((booking) => (
                   <SelectItem key={booking.id} value={booking.id}>
-                    {booking.client?.clientName} - {booking.catName}
+                    {booking.client?.clientName} - {booking.catName} ({format(new Date(booking.reservationDate), 'yyyy-MM-dd')})
                   </SelectItem>
                 ))}
               </SelectContent>
