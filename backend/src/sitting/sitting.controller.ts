@@ -186,7 +186,9 @@ export class SittingController {
   async getCaresForCalendar(@Req() req: any, @Query('from') from: string, @Query('to') to: string) {
     const userId = req.appUserId;
     const fromDate = new Date(from);
+    // Set toDate to end of day (23:59:59.999) to include all data on that day
     const toDate = new Date(to);
+    toDate.setHours(23, 59, 59, 999);
     return this.sitting.getCaresForCalendar({ userId, from: fromDate, to: toDate });
   }
 }
