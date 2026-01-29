@@ -73,7 +73,7 @@ export function EditCareDialog({ care, open, onOpenChange }: EditCareDialogProps
       ...formData,
       isCompleted: checked,
       completedAt: checked && !formData.completedAt
-        ? format(new Date(), "yyyy-MM-dd'T'HH:mm")
+        ? formData.careTimeKst
         : formData.completedAt,
     });
   };
