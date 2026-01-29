@@ -538,6 +538,9 @@ export class SittingService {
     if (dto.note !== undefined) {
       updateData.note = dto.note;
     }
+    if (dto.completedAt !== undefined) {
+      updateData.completedAt = dto.completedAt ? new Date(dto.completedAt) : null;
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.sittingCare.update({
