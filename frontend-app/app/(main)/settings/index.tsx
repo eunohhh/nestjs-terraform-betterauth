@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -43,7 +43,12 @@ export default function SettingsScreen() {
         <SettingsItem
           icon="notifications-outline"
           title="알림 설정"
-          onPress={() => router.push('/(main)/settings/notifications')}
+          onPress={() => router.push('/settings/notifications' as Href)}
+        />
+        <SettingsItem
+          icon="document-text-outline"
+          title="개인정보 처리방침"
+          onPress={() => router.push('/settings/privacy-policy' as Href)}
         />
       </View>
     </ThemedView>

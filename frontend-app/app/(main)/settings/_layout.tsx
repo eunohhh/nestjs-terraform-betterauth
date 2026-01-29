@@ -28,6 +28,12 @@ export default function SettingsLayout() {
           title: '알림 설정',
         }}
       />
+      <Stack.Screen
+        name="privacy-policy"
+        options={{
+          title: '개인정보 처리방침',
+        }}
+      />
     </Stack>
   );
 }
