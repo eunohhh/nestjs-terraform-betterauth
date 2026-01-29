@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -36,8 +36,9 @@ LocaleConfig.defaultLocale = 'ko';
 
 const MAX_VISIBLE_CARES = 3;
 
-// 연도 범위 (현재 기준 ±5년)
-const YEAR_RANGE = 5;
+// 연도 범위
+const START_YEAR = 2024;
+const FUTURE_YEARS = 5;
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
 export default function CatSittingScreen() {
@@ -58,12 +59,15 @@ export default function CatSittingScreen() {
   // 연도 목록 생성
   const years = useMemo(() => {
     const currentYear = new Date().getFullYear();
+    const endYear = currentYear + FUTURE_YEARS;
     const result: number[] = [];
-    for (let i = currentYear - YEAR_RANGE; i <= currentYear + YEAR_RANGE; i++) {
+    for (let i = START_YEAR; i <= endYear; i++) {
       result.push(i);
     }
     return result;
   }, []);
+
+  const yearScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     fetchCaresForMonth();
@@ -146,6 +150,22 @@ export default function CatSittingScreen() {
     },
     [setSelectedMonth, fetchCaresForMonth],
   );
+
+  // 연/월 선택 모달이 열릴 때 현재 연도로 스크롤
+  useEffect(() => {
+    if (yearMonthPickerVisible && yearScrollRef.current) {
+      const selectedYear = selectedMonth.getFullYear();
+      const yearIndex = years.indexOf(selectedYear);
+      if (yearIndex >= 0) {
+        const itemHeight = 48; // pickerItem paddingVertical(12)*2 + marginBottom(4) + text height
+        const scrollViewHeight = 250; // pickerScroll maxHeight
+        const offset = Math.max(0, yearIndex * itemHeight - scrollViewHeight / 2 + itemHeight / 2);
+        setTimeout(() => {
+          yearScrollRef.current?.scrollTo({ y: offset, animated: false });
+        }, 50);
+      }
+    }
+  }, [yearMonthPickerVisible, selectedMonth, years]);
 
   // 커스텀 헤더 렌더링
   const renderCustomHeader = useCallback(() => {
@@ -442,6 +462,7 @@ export default function CatSittingScreen() {
                 <View style={styles.pickerColumn}>
                   <Text style={[styles.pickerLabel, { color: theme.icon }]}>연도</Text>
                   <ScrollView
+                    ref={yearScrollRef}
                     style={styles.pickerScroll}
                     showsVerticalScrollIndicator={false}
                   >
@@ -575,9 +596,9 @@ const styles = StyleSheet.create({
   },
   dayContainer: {
     width: 44,
-    height: 60,
+    height: 72,
     alignItems: 'center',
-    paddingTop: 4,
+    paddingTop: 6,
     borderRadius: 8,
   },
   dayText: {
@@ -674,6 +695,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    paddingVertical: 16,
   },
   headerText: {
     fontSize: 18,

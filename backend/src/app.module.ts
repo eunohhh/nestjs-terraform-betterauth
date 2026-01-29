@@ -9,6 +9,7 @@ import { AppAuthController } from './auth/app-auth.controller';
 import { AppAuthService } from './auth/app-auth.service';
 import { AppJwtGuard } from './auth/app-jwt.guard';
 import { auth } from './auth/auth';
+import { NotificationModule } from './notification/notification.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { SittingModule } from './sitting/sitting.module';
 
@@ -20,6 +21,7 @@ import { SittingModule } from './sitting/sitting.module';
       throttlers: [{ ttl: 60_000, limit: 100 }],
     }),
     SittingModule,
+    NotificationModule,
   ],
   controllers: [AppController, AppAuthController],
   providers: [

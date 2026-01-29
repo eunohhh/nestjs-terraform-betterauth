@@ -51,6 +51,11 @@ model User {
   updatedAt     DateTime @updatedAt
   role          String   @default("user")
 
+  // 푸시 알림
+  pushToken            String?   @db.Text
+  pushTokenUpdatedAt   DateTime?
+  notificationSettings Json?     @default("{\"enabled\": true, \"morningAlertHour\": 8, \"beforeMinutes\": 30}")
+
   sessions      Session[]
   accounts      Account[]
   appLoginCodes AppLoginCode[]

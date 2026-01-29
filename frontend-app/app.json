@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.eunsun.allrecords",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -38,11 +42,24 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#ffffff"
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6621bf41-5de3-4988-b6f9-bdfd57b09105"
+      }
+    },
+    "owner": "eunoh1234"
   }
 }

@@ -48,6 +48,13 @@ export default function MainLayout() {
           title: '고양이 돌보미',
         }}
       />
+      <Drawer.Screen
+        name="settings"
+        options={{
+          drawerLabel: '설정',
+          title: '설정',
+        }}
+      />
     </Drawer>
   );
 }
