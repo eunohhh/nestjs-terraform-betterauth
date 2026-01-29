@@ -606,8 +606,6 @@ export class SittingService {
    */
   async getCaresForCalendar(params: { userId: string; from: Date; to: Date; appId?: string }) {
     const { userId, from, to } = params;
-    console.log('from ====>', from);
-    console.log('to ====>', to);
     const appId = params.appId ?? 'catsitter';
 
     return this.prisma.sittingCare.findMany({
