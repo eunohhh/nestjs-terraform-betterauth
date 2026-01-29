@@ -56,5 +56,9 @@ locals {
       name      = "APP_URL"
       valueFrom = "${local.secret_arn}:APP_URL::"
     },
+    {
+      name      = "ALLOWED_EMAILS"
+      valueFrom = "${local.secret_arn}:ALLOWED_EMAILS::"
+    }
   ]
 }

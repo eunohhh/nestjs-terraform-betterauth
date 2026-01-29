@@ -116,7 +116,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const code = parsed.queryParams?.code;
 
       if (typeof error === 'string') {
-        setErrorStatus(error);
+        const errorMessage =
+          error === 'unauthorized_email' ? '허용되지 않은 계정입니다' : error;
+        setErrorStatus(errorMessage);
         return;
       }
 

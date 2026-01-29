@@ -69,6 +69,10 @@ export class AppAuthController {
       return response.redirect(this.buildDeepLink({ error: 'not_logged_in' }));
     }
 
+    if (!this.isEmailAllowed(session.user.email)) {
+      return response.redirect(this.buildDeepLink({ error: 'unauthorized_email' }));
+    }
+
     const { code, expiresAt } = await this.appAuthService.createLoginCode(session.user.id);
 
     return response.redirect(this.buildDeepLink({ code, expiresAt: expiresAt.toISOString() }));
@@ -175,5 +179,17 @@ export class AppAuthController {
       }
     }
     return headers;
+  }
+
+  private isEmailAllowed(email: string | undefined): boolean {
+    if (!email) {
+      return false;
+    }
+    const allowedEmails = process.env.ALLOWED_EMAILS;
+    if (!allowedEmails) {
+      return true; // 환경 변수 미설정 시 모든 이메일 허용
+    }
+    const emailList = allowedEmails.split(',').map((e) => e.trim().toLowerCase());
+    return emailList.includes(email.toLowerCase());
   }
 }
