@@ -7,13 +7,19 @@
       "developmentClient": true,                                                                                              
       "distribution": "internal"                                                                                              
     },                                                                                                                        
-    "preview": {                                                                                                              
-      "distribution": "internal",                                                                                             
-      "ios": {                                                                                                                
-        "simulator": false                                                                                                    
-      }                                                                                                                       
-    },                                                                                                                        
-    "production": {}                                                                                                          
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      }
+    },
+    "preview-testflight": {
+      "distribution": "store",
+      "ios": {
+        "simulator": false
+      }
+    },
+    "production": {}
   },                                                                                                                          
   "submit": {                                                                                                                 
     "production": {}                                                                                                          
