@@ -101,11 +101,39 @@ export class SittingService {
     if (!client) throw new NotFoundException('Client not found');
     if (client.userId !== userId) throw new ForbiddenException('Not your client');
 
-    await this.prisma.sittingClient.delete({
-      where: { id: clientId },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      // Get all bookings for this client
+      const bookings = await tx.sittingBooking.findMany({
+        where: { clientId },
+        select: { id: true },
+      });
 
-    return { success: true };
+      const bookingIds = bookings.map((b) => b.id);
+
+      if (bookingIds.length > 0) {
+        // Delete all cares for these bookings
+        await tx.sittingCare.deleteMany({
+          where: { bookingId: { in: bookingIds } },
+        });
+
+        // Delete all audit logs for these bookings
+        await tx.sittingBookingAuditLog.deleteMany({
+          where: { bookingId: { in: bookingIds } },
+        });
+
+        // Delete all bookings
+        await tx.sittingBooking.deleteMany({
+          where: { clientId },
+        });
+      }
+
+      // Finally delete the client
+      await tx.sittingClient.delete({
+        where: { id: clientId },
+      });
+
+      return { success: true };
+    });
   }
 
   // ==================== BOOKING ====================
