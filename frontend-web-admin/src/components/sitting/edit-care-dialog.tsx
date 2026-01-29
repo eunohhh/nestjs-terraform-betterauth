@@ -3,6 +3,7 @@
 import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,8 @@ export function EditCareDialog({ care, open, onOpenChange }: EditCareDialogProps
   const [formData, setFormData] = useState({
     careTimeKst: '',
     note: '',
+    isCompleted: false,
+    completedAt: '',
   });
 
   useEffect(() => {
@@ -34,17 +37,45 @@ export function EditCareDialog({ care, open, onOpenChange }: EditCareDialogProps
       setFormData({
         careTimeKst: care.careTime ? format(new Date(care.careTime), "yyyy-MM-dd'T'HH:mm") : '',
         note: care.note || '',
+        isCompleted: !!care.completedAt,
+        completedAt: care.completedAt
+          ? format(new Date(care.completedAt), "yyyy-MM-dd'T'HH:mm")
+          : '',
       });
     }
   }, [care]);
 
   const handleSubmit = async () => {
     if (!care) return;
+
+    const dto: { careTimeKst?: string; note?: string; completedAt?: string | null } = {
+      careTimeKst: formData.careTimeKst,
+      note: formData.note,
+    };
+
+    if (formData.isCompleted) {
+      dto.completedAt = formData.completedAt
+        ? new Date(formData.completedAt).toISOString()
+        : new Date().toISOString();
+    } else {
+      dto.completedAt = null;
+    }
+
     await updateCare.mutateAsync({
       careId: care.id,
-      dto: formData,
+      dto,
     });
     onOpenChange(false);
+  };
+
+  const handleCompletedChange = (checked: boolean) => {
+    setFormData({
+      ...formData,
+      isCompleted: checked,
+      completedAt: checked && !formData.completedAt
+        ? format(new Date(), "yyyy-MM-dd'T'HH:mm")
+        : formData.completedAt,
+    });
   };
 
   return (
@@ -71,6 +102,27 @@ export function EditCareDialog({ care, open, onOpenChange }: EditCareDialogProps
               onChange={(e) => setFormData({ ...formData, note: e.target.value })}
             />
           </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="isCompleted"
+              checked={formData.isCompleted}
+              onCheckedChange={handleCompletedChange}
+            />
+            <Label htmlFor="isCompleted" className="cursor-pointer">
+              Completed
+            </Label>
+          </div>
+          {formData.isCompleted && (
+            <div className="grid gap-2">
+              <Label htmlFor="completedAt">Completed At</Label>
+              <Input
+                id="completedAt"
+                type="datetime-local"
+                value={formData.completedAt}
+                onChange={(e) => setFormData({ ...formData, completedAt: e.target.value })}
+              />
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

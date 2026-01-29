@@ -58,6 +58,7 @@ export interface UpdateBookingDto {
 export interface UpdateCareDto {
   careTimeKst?: string;
   note?: string;
+  completedAt?: string | null;
 }
 
 export interface CreateClientDto {
