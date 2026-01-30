@@ -7,7 +7,7 @@ const APP_JWT_ISSUER = 'family-infra-backend';
 const APP_JWT_AUDIENCE = 'app';
 const DEFAULT_APP_JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const APP_LOGIN_CODE_TTL_SECONDS = 60 * 2;
-const REVIEW_USER_ID_PREFIX = 'review-user-';
+const REVIEW_USER_NAME = 'App Store Reviewer';
 
 @Injectable()
 export class AppAuthService {
@@ -119,19 +119,18 @@ export class AppAuthService {
       throw new UnauthorizedException('Invalid review credentials');
     }
 
-    // 리뷰 사용자 조회 또는 생성
-    const reviewUserId = `${REVIEW_USER_ID_PREFIX}${email}`;
+    // 리뷰 사용자 조회 또는 생성 (email로 조회)
     let user = await this.prisma.user.findUnique({
-      where: { id: reviewUserId },
+      where: { email },
       select: { id: true, name: true, email: true, image: true, role: true },
     });
 
     if (!user) {
       user = await this.prisma.user.create({
         data: {
-          id: reviewUserId,
+          id: randomUUID(),
           email,
-          name: 'App Store Reviewer',
+          name: REVIEW_USER_NAME,
           emailVerified: true,
           role: 'user',
         },
