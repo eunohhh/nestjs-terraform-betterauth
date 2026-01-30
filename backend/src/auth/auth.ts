@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { betterAuth } from 'better-auth';
+import { APIError, betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import pg from 'pg';
 import { PrismaClient } from '../generated/prisma/client';
@@ -13,10 +13,33 @@ const adapter = new PrismaPg(pool);
 
 const prisma = new PrismaClient({ adapter });
 
+const isEmailAllowed = (email: string | null | undefined): boolean => {
+  if (!email) {
+    return false;
+  }
+  const allowedEmails = process.env.ALLOWED_EMAILS;
+  if (!allowedEmails) {
+    return true; // 환경 변수 미설정 시 모든 이메일 허용
+  }
+  const emailList = allowedEmails.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  return emailList.includes(email.toLowerCase());
+};
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
+  databaseHooks: {
+    user: {
+      create: {
+        async before(user) {
+          if (!isEmailAllowed(user.email)) {
+            throw new APIError('FORBIDDEN', { message: 'unauthorized_email' });
+          }
+        },
+      },
+    },
+  },
   user: {
     additionalFields: {
       role: {
