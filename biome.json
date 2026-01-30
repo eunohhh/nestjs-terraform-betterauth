@@ -12,7 +12,10 @@
       "backend/test/**/*.ts",
       "frontend-web-admin/src/**/*.ts",
       "frontend-web-admin/src/**/*.tsx",
-      "!frontend-web-admin/src/components/ui/**/*.tsx"
+      "!frontend-web-admin/src/components/ui/**/*.tsx",
+      "frontend-web/src/**/*.ts",
+      "frontend-web/src/**/*.tsx",
+      "!frontend-web/src/components/ui/**/*.tsx"
     ]
   },
   "formatter": {
