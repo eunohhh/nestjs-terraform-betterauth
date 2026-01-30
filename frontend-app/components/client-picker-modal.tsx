@@ -30,6 +30,18 @@ export function ClientPickerModal({
   theme,
   isDark,
 }: Props) {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const yy = String(date.getFullYear()).slice(-2);
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yy}.${mm}.${dd}`;
+  };
+
+  const sortedClients = [...clients].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
   return (
     <Modal
       visible={visible}
@@ -52,7 +64,7 @@ export function ClientPickerModal({
               </Pressable>
             </View>
             <ScrollView style={styles.bookingList}>
-              {clients.map((client) => (
+              {sortedClients.map((client) => (
                 <Pressable
                   key={client.id}
                   style={[
@@ -62,6 +74,9 @@ export function ClientPickerModal({
                         selectedClient?.id === client.id
                           ? theme.tint + '20'
                           : 'transparent',
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
                     },
                   ]}
                   onPress={() => {
@@ -69,9 +84,16 @@ export function ClientPickerModal({
                     onClose();
                   }}
                 >
-                  <Text style={[styles.bookingName, { color: theme.text }]}>{client.clientName}
-                  </Text>
-                  <Text style={[styles.bookingCat, { color: theme.icon }]}>{client.catName}
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.bookingName, { color: theme.text }]}>
+                      {client.clientName}
+                    </Text>
+                    <Text style={[styles.bookingCat, { color: theme.icon }]}>
+                      {client.catName}
+                    </Text>
+                  </View>
+                  <Text style={{ color: theme.icon, fontSize: 12 }}>
+                    {formatDate(client.createdAt)}
                   </Text>
                 </Pressable>
               ))}

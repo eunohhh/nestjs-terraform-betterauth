@@ -41,13 +41,12 @@ export default function AdminClientsTab({
 }: AdminClientsTabProps)  {
   const openNaverMap = async (address: string) => {
     const encodedAddress = encodeURIComponent(address);
-    const naverMapUrl = `nmap://search?query=${encodedAddress}&appname=com.family.infra`;
+    const naverMapUrl = `nmap://search?query=${encodedAddress}&appname=com.eunsun.allrecords`;
     const webUrl = `https://map.naver.com/v5/search/${encodedAddress}`;
 
-    const canOpen = await Linking.canOpenURL(naverMapUrl);
-    if (canOpen) {
+    try {
       await Linking.openURL(naverMapUrl);
-    } else {
+    } catch {
       await Linking.openURL(webUrl);
     }
   };

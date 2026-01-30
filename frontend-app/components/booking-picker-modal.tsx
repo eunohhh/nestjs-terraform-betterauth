@@ -30,6 +30,18 @@ export function BookingPickerModal({
   theme,
   isDark,
 }: Props) {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const yy = String(date.getFullYear()).slice(-2);
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yy}.${mm}.${dd}`;
+  };
+
+  const sortedBookings = [...bookings].sort(
+    (a, b) => new Date(b.reservationDate).getTime() - new Date(a.reservationDate).getTime()
+  );
+
   return (
     <Modal
       visible={visible}
@@ -52,7 +64,7 @@ export function BookingPickerModal({
               </Pressable>
             </View>
             <ScrollView style={styles.bookingList}>
-              {bookings.map((booking) => (
+              {sortedBookings.map((booking) => (
                 <Pressable
                   key={booking.id}
                   style={[
@@ -62,6 +74,9 @@ export function BookingPickerModal({
                         selectedBooking?.id === booking.id
                           ? theme.tint + '20'
                           : 'transparent',
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
                     },
                   ]}
                   onPress={() => {
@@ -69,9 +84,16 @@ export function BookingPickerModal({
                     onClose();
                   }}
                 >
-                  <Text style={[styles.bookingName, { color: theme.text }]}>{booking.client?.clientName}
-                  </Text>
-                  <Text style={[styles.bookingCat, { color: theme.icon }]}>{booking.catName} · {booking.addressSnapshot}
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.bookingName, { color: theme.text }]}>
+                      {booking.client?.clientName}
+                    </Text>
+                    <Text style={[styles.bookingCat, { color: theme.icon }]}>
+                      {booking.catName} · {booking.addressSnapshot}
+                    </Text>
+                  </View>
+                  <Text style={{ color: theme.icon, fontSize: 12 }}>
+                    {formatDate(booking.reservationDate)}
                   </Text>
                 </Pressable>
               ))}

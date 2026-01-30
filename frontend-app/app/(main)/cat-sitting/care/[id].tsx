@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -69,6 +70,18 @@ export default function CareDetailScreen() {
       },
     ]);
   }, [care, deleteCare, fetchCaresForMonth, router]);
+
+  const openNaverMap = async (address: string) => {
+    const encodedAddress = encodeURIComponent(address);
+    const naverMapUrl = `nmap://search?query=${encodedAddress}&appname=com.eunsun.allrecords`;
+    const webUrl = `https://map.naver.com/v5/search/${encodedAddress}`;
+
+    try {
+      await Linking.openURL(naverMapUrl);
+    } catch {
+      await Linking.openURL(webUrl);
+    }
+  };
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -185,6 +198,15 @@ export default function CareDetailScreen() {
 
       {/* 액션 버튼들 */}
       <View style={styles.actions}>
+        {care.booking?.client?.address && (
+          <Pressable
+            style={[styles.actionButton, styles.naverMapButton]}
+            onPress={() => openNaverMap(care.booking!.client!.address)}
+          >
+            <Text style={styles.naverMapButtonText}>네이버 지도</Text>
+          </Pressable>
+        )}
+
         <Pressable
           style={[
             styles.actionButton,
@@ -281,5 +303,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#EF4444',
+  },
+  naverMapButton: {
+    backgroundColor: '#2DB400',
+  },
+  naverMapButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

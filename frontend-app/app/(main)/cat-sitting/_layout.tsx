@@ -22,7 +22,7 @@ export default function CatSittingLayout() {
         options={{
           title: '케어 상세',
           header: ({ options }) => (
-            <CustomHeader title={options.title ?? ''} showDrawerToggle={false} />
+            <CustomHeader title={options.title ?? ''} showCloseButton />
           ),
         }}
       />
