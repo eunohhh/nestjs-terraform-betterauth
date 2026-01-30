@@ -34,6 +34,23 @@ export class AppAuthController {
     return this.appAuthService.exchangeCode(code);
   }
 
+  @Post('review')
+  @AllowAnonymous()
+  async reviewLogin(@Req() request: Request) {
+    const body = request.body as { email?: unknown; password?: unknown } | undefined;
+    const email = body?.email;
+    const password = body?.password;
+
+    if (typeof email !== 'string' || email.length === 0) {
+      throw new BadRequestException('email is required');
+    }
+    if (typeof password !== 'string' || password.length === 0) {
+      throw new BadRequestException('password is required');
+    }
+
+    return this.appAuthService.reviewLogin(email, password);
+  }
+
   @Post('code')
   @AllowAnonymous()
   async createCode(@Req() request: Request) {

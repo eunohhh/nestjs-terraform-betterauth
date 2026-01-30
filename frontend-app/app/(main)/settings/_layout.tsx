@@ -23,7 +23,7 @@ export default function SettingsLayout() {
         options={{
           title: '알림 설정',
           header: ({ options }) => (
-            <CustomHeader title={options.title ?? ''} showDrawerToggle />
+            <CustomHeader title={options.title ?? ''} showDrawerToggle showCloseButton />
           ),
         }}
       />
@@ -32,7 +32,7 @@ export default function SettingsLayout() {
         options={{
           title: '개인정보 처리방침',
           header: ({ options }) => (
-            <CustomHeader title={options.title ?? ''} showDrawerToggle />
+            <CustomHeader title={options.title ?? ''} showDrawerToggle showCloseButton />
           ),
         }}
       />
@@ -41,7 +41,7 @@ export default function SettingsLayout() {
         options={{
           title: '내 정보',
           header: ({ options }) => (
-            <CustomHeader title={options.title ?? ''} showDrawerToggle />
+            <CustomHeader title={options.title ?? ''} showDrawerToggle showCloseButton />
           ),
         }}
       />

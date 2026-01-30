@@ -59,6 +59,10 @@ locals {
     {
       name      = "ALLOWED_EMAILS"
       valueFrom = "${local.secret_arn}:ALLOWED_EMAILS::"
+    },
+    {
+      name      = "ALLOW_REVIEW_LOGIN"
+      valueFrom = "${local.secret_arn}:ALLOW_REVIEW_LOGIN::"
     }
   ]
 }

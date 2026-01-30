@@ -9,6 +9,7 @@ import {
   formatApiError,
   getApiBaseUrl,
   getStoredToken,
+  reviewLogin,
   setStoredToken,
   type AppUser,
 } from '@/lib/auth-api';
@@ -29,6 +30,7 @@ type AuthContextValue = {
   user: AppUser | null;
   isLoading: boolean;
   startLogin: () => Promise<void>;
+  startReviewLogin: (email: string, password: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -200,6 +202,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setStatus({ tone: 'neutral', label: 'logged out' });
   }, [clearSession]);
 
+  const startReviewLogin = useCallback(async (email: string, password: string) => {
+    try {
+      setStatus({ tone: 'neutral', label: 'logging in...' });
+      const data = await reviewLogin(email, password);
+      await setStoredToken(data.accessToken);
+      setAccessToken(data.accessToken);
+      setUser(data.user);
+      setStatus({ tone: 'success', label: 'authenticated' });
+    } catch (error) {
+      setErrorStatus(formatApiError(error));
+    }
+  }, [setErrorStatus]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       apiBaseUrl,
@@ -209,10 +224,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       user,
       isLoading,
       startLogin,
+      startReviewLogin,
       refreshProfile: () => refreshProfile(),
       logout,
     }),
-    [apiBaseUrl, redirectUrl, status, accessToken, user, isLoading, startLogin, refreshProfile, logout],
+    [apiBaseUrl, redirectUrl, status, accessToken, user, isLoading, startLogin, startReviewLogin, refreshProfile, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

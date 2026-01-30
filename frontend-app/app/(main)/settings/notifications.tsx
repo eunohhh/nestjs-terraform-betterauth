@@ -141,11 +141,11 @@ export default function NotificationsSettingsScreen() {
                 : pushError || '푸시 알림이 비활성화되어 있습니다'}
             </ThemedText>
           </View>
-          {expoPushToken && (
+          {/* {expoPushToken && (
             <ThemedText style={[styles.tokenText, { color: theme.icon }]} numberOfLines={1}>
               토큰: {expoPushToken.slice(0, 30)}...
             </ThemedText>
-          )}
+          )} */}
         </View>
 
         {/* 알림 설정 */}
