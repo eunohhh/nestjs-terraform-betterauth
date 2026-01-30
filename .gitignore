@@ -55,3 +55,5 @@ node_modules/*
 /docs/private
 
 *.sql
+
+eas.json
