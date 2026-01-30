@@ -1,19 +1,14 @@
 import { Stack } from 'expo-router';
-import { DrawerToggleButton } from '@react-navigation/drawer';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
+import CustomHeader from '@/components/ui/custom-header';
 
 export default function CatSittingLayout() {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? 'light'];
-
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: theme.background },
-        headerTintColor: theme.text,
-        headerLeft: () => <DrawerToggleButton tintColor={theme.text} />,
+        header: ({ options }) => (
+          <CustomHeader title={options.title ?? ''} />
+        ),
       }}
     >
       <Stack.Screen
@@ -26,7 +21,9 @@ export default function CatSittingLayout() {
         name="care/[id]"
         options={{
           title: '케어 상세',
-          headerLeft: undefined,
+          header: ({ options }) => (
+            <CustomHeader title={options.title ?? ''} showDrawerToggle={false} />
+          ),
         }}
       />
       <Stack.Screen

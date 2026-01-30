@@ -1,15 +1,6 @@
 import { useNavigation, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AddCareModal } from '@/components/add-care-modal';
@@ -21,6 +12,14 @@ import { ContactMethodPickerModal } from '@/components/contact-method-picker-mod
 import { DateTimePickerModal } from '@/components/date-time-picker-modal';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import useAdminBookingState from './hooks/use-admin-booking-state';
+import useAdminCareState from './hooks/use-admin-care-state';
+import useAdminClientState from './hooks/use-admin-client-state';
+import AdminBookingsTab from './components/admin/AdminBookingsTab';
+import AdminCaresTab from './components/admin/AdminCaresTab';
+import AdminClientsTab from './components/admin/AdminClientsTab';
+import AdminHeader from './components/admin/AdminHeader';
+import AdminTabs from './components/admin/AdminTabs';
 import {
   createBooking,
   createClient,
@@ -38,8 +37,15 @@ import {
   type SittingClient,
 } from '@/lib/sitting-api';
 import { useAuth } from '@/providers/auth-provider';
-
-type AdminTab = 'clients' | 'bookings' | 'cares';
+import styles from './admin-styles';
+import type { AdminTab } from './admin-types';
+import {
+  buildCalendarRange,
+  formatShortDate,
+  normalizeDateOnly,
+  toKstEndUtc,
+  toKstStartUtc,
+} from './lib/admin-utils';
 
 const contactMethodOptions = ['카톡', '숨고', '기타'];
 const bookingStatusOptions: { value: 'ALL' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'; label: string }[] =
@@ -49,47 +55,6 @@ const bookingStatusOptions: { value: 'ALL' | 'CONFIRMED' | 'COMPLETED' | 'CANCEL
     { value: 'COMPLETED', label: '완료' },
     { value: 'CANCELLED', label: '취소' },
   ];
-const KST_OFFSET_HOURS = 9;
-
-const buildCalendarRange = (targetDate: Date) => {
-  const year = targetDate.getFullYear();
-  const month = targetDate.getMonth();
-  const kstOffsetMs = KST_OFFSET_HOURS * 60 * 60 * 1000;
-  const kstMonthStartUtc = new Date(Date.UTC(year, month, 1, -KST_OFFSET_HOURS));
-  const startDay = new Date(kstMonthStartUtc.getTime() + kstOffsetMs).getUTCDay();
-  const from = new Date(kstMonthStartUtc);
-  from.setUTCDate(from.getUTCDate() - startDay);
-
-  const kstMonthEndUtc = new Date(
-    Date.UTC(year, month + 1, 0, 23 - KST_OFFSET_HOURS, 59, 59, 999),
-  );
-  const endDay = new Date(kstMonthEndUtc.getTime() + kstOffsetMs).getUTCDay();
-  const to = new Date(kstMonthEndUtc);
-  to.setUTCDate(to.getUTCDate() + (6 - endDay));
-  return { from, to };
-};
-
-const toKstStartUtc = (date: Date) =>
-  new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), -KST_OFFSET_HOURS));
-
-const toKstEndUtc = (date: Date) =>
-  new Date(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 23 - KST_OFFSET_HOURS, 59, 59, 999),
-  );
-
-const normalizeDateOnly = (date: Date) => {
-  const normalized = new Date(date);
-  normalized.setHours(0, 0, 0, 0);
-  return normalized;
-};
-
-const formatShortDate = (date: Date) =>
-  date.toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-
 export default function AdminScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -99,81 +64,132 @@ export default function AdminScreen() {
   const isDark = colorScheme === 'dark';
 
   const [activeTab, setActiveTab] = useState<AdminTab>('clients');
-
-  const [clients, setClients] = useState<SittingClient[]>([]);
-  const [bookings, setBookings] = useState<SittingBooking[]>([]);
-  const [cares, setCares] = useState<SittingCare[]>([]);
-  const [isLoadingClients, setIsLoadingClients] = useState(false);
-  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
-  const [isLoadingCares, setIsLoadingCares] = useState(false);
-  const [clientQuery, setClientQuery] = useState('');
-  const [bookingQuery, setBookingQuery] = useState('');
-  const [bookingStatusFilter, setBookingStatusFilter] = useState<
-    'ALL' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'
-  >('ALL');
-  const [bookingClientFilter, setBookingClientFilter] = useState<SittingClient | null>(null);
-  const [careQuery, setCareQuery] = useState('');
-  const [careFilterFrom, setCareFilterFrom] = useState<Date | null>(null);
-  const [careFilterTo, setCareFilterTo] = useState<Date | null>(null);
-  const [showCareFilterDatePicker, setShowCareFilterDatePicker] = useState(false);
-  const [careFilterDateTarget, setCareFilterDateTarget] = useState<'from' | 'to' | null>(
-    null,
-  );
-
-  const [clientModalVisible, setClientModalVisible] = useState(false);
-  const [editingClient, setEditingClient] = useState<SittingClient | null>(null);
-  const [clientName, setClientName] = useState('');
-  const [clientCatName, setClientCatName] = useState('');
-  const [clientAddress, setClientAddress] = useState('');
-  const [clientEntryNote, setClientEntryNote] = useState('');
-  const [clientRequirements, setClientRequirements] = useState('');
-  const [isSavingClient, setIsSavingClient] = useState(false);
-
-  const [selectedClient, setSelectedClient] = useState<SittingClient | null>(null);
-  const [bookingDate, setBookingDate] = useState(new Date());
-  const [expectedAmount, setExpectedAmount] = useState('');
-  const [amount, setAmount] = useState('');
-  const [contactMethod, setContactMethod] = useState<string | null>('카톡');
-  const [isSavingBooking, setIsSavingBooking] = useState(false);
-  const [showBookingCreateModal, setShowBookingCreateModal] = useState(false);
-  const [showClientCreateModal, setShowClientCreateModal] = useState(false);
-  const [showClientPicker, setShowClientPicker] = useState(false);
-  const [clientPickerTarget, setClientPickerTarget] = useState<
-    'booking-create' | 'booking-filter' | null
-  >(null);
-
-  const [editingBooking, setEditingBooking] = useState<SittingBooking | null>(null);
-  const [editBookingDate, setEditBookingDate] = useState(new Date());
-  const [editExpectedAmount, setEditExpectedAmount] = useState('');
-  const [editAmount, setEditAmount] = useState('');
-  const [editContactMethod, setEditContactMethod] = useState<string | null>('카톡');
-  const [editEntryNote, setEditEntryNote] = useState('');
-  const [isUpdatingBooking, setIsUpdatingBooking] = useState(false);
-  const [showBookingEditModal, setShowBookingEditModal] = useState(false);
-
-  const [showContactMethodPicker, setShowContactMethodPicker] = useState(false);
-  const [contactMethodTarget, setContactMethodTarget] = useState<'create' | 'edit' | null>(
-    null,
-  );
-
-  const [showBookingDatePicker, setShowBookingDatePicker] = useState(false);
-  const [showBookingTimePicker, setShowBookingTimePicker] = useState(false);
-  const [bookingPickerTarget, setBookingPickerTarget] = useState<'create' | 'edit' | null>(
-    null,
-  );
-  const [pendingBookingCreateOpen, setPendingBookingCreateOpen] = useState(false);
-  const [pendingBookingEditOpen, setPendingBookingEditOpen] = useState(false);
-
-  const [careMonth, setCareMonth] = useState(new Date());
-  const [showCareCreateModal, setShowCareCreateModal] = useState(false);
-  const [showCareEditModal, setShowCareEditModal] = useState(false);
-  const [editingCare, setEditingCare] = useState<SittingCare | null>(null);
-  const [editCareDate, setEditCareDate] = useState(new Date());
-  const [editCareNote, setEditCareNote] = useState('');
-  const [isUpdatingCare, setIsUpdatingCare] = useState(false);
-  const [showCareDatePicker, setShowCareDatePicker] = useState(false);
-  const [showCareTimePicker, setShowCareTimePicker] = useState(false);
-  const [pendingCareEditOpen, setPendingCareEditOpen] = useState(false);
+  const {
+    clients,
+    setClients,
+    isLoadingClients,
+    setIsLoadingClients,
+    clientQuery,
+    setClientQuery,
+    clientModalVisible,
+    setClientModalVisible,
+    editingClient,
+    setEditingClient,
+    clientName,
+    setClientName,
+    clientCatName,
+    setClientCatName,
+    clientAddress,
+    setClientAddress,
+    clientEntryNote,
+    setClientEntryNote,
+    clientRequirements,
+    setClientRequirements,
+    isSavingClient,
+    setIsSavingClient,
+    resetClientForm,
+    hydrateClientForm,
+  } = useAdminClientState();
+  const {
+    bookings,
+    setBookings,
+    isLoadingBookings,
+    setIsLoadingBookings,
+    bookingQuery,
+    setBookingQuery,
+    bookingStatusFilter,
+    setBookingStatusFilter,
+    bookingClientFilter,
+    setBookingClientFilter,
+    selectedClient,
+    setSelectedClient,
+    bookingDate,
+    setBookingDate,
+    expectedAmount,
+    setExpectedAmount,
+    amount,
+    setAmount,
+    contactMethod,
+    setContactMethod,
+    isSavingBooking,
+    setIsSavingBooking,
+    showBookingCreateModal,
+    setShowBookingCreateModal,
+    showClientCreateModal,
+    setShowClientCreateModal,
+    showClientPicker,
+    setShowClientPicker,
+    clientPickerTarget,
+    setClientPickerTarget,
+    editingBooking,
+    setEditingBooking,
+    editBookingDate,
+    setEditBookingDate,
+    editExpectedAmount,
+    setEditExpectedAmount,
+    editAmount,
+    setEditAmount,
+    editContactMethod,
+    setEditContactMethod,
+    editEntryNote,
+    setEditEntryNote,
+    hydrateBookingEditForm,
+    isUpdatingBooking,
+    setIsUpdatingBooking,
+    showBookingEditModal,
+    setShowBookingEditModal,
+    showContactMethodPicker,
+    setShowContactMethodPicker,
+    contactMethodTarget,
+    setContactMethodTarget,
+    showBookingDatePicker,
+    setShowBookingDatePicker,
+    showBookingTimePicker,
+    setShowBookingTimePicker,
+    bookingPickerTarget,
+    setBookingPickerTarget,
+    pendingBookingCreateOpen,
+    setPendingBookingCreateOpen,
+    pendingBookingEditOpen,
+    setPendingBookingEditOpen,
+  } = useAdminBookingState();
+  const {
+    cares,
+    setCares,
+    isLoadingCares,
+    setIsLoadingCares,
+    careQuery,
+    setCareQuery,
+    careFilterFrom,
+    setCareFilterFrom,
+    careFilterTo,
+    setCareFilterTo,
+    showCareFilterDatePicker,
+    setShowCareFilterDatePicker,
+    careFilterDateTarget,
+    setCareFilterDateTarget,
+    careMonth,
+    setCareMonth,
+    showCareCreateModal,
+    setShowCareCreateModal,
+    showCareEditModal,
+    setShowCareEditModal,
+    editingCare,
+    setEditingCare,
+    editCareDate,
+    setEditCareDate,
+    editCareNote,
+    setEditCareNote,
+    hydrateCareEditForm,
+    isUpdatingCare,
+    setIsUpdatingCare,
+    showCareDatePicker,
+    setShowCareDatePicker,
+    showCareTimePicker,
+    setShowCareTimePicker,
+    pendingCareEditOpen,
+    setPendingCareEditOpen,
+  } = useAdminCareState();
 
   const loadClients = useCallback(async () => {
     if (!accessToken) return [];
@@ -359,13 +375,9 @@ export default function AdminScreen() {
     drawer.openDrawer?.();
   }, [navigation]);
 
-  const resetClientForm = useCallback(() => {
-    setClientName('');
-    setClientCatName('');
-    setClientAddress('');
-    setClientEntryNote('');
-    setClientRequirements('');
-  }, []);
+  const handleCloseAdmin = useCallback(() => {
+    router.back();
+  }, [router]);
 
   const handleOpenClientCreate = useCallback(() => {
     setEditingClient(null);
@@ -375,13 +387,15 @@ export default function AdminScreen() {
 
   const handleOpenClientEdit = useCallback((client: SittingClient) => {
     setEditingClient(client);
-    setClientName(client.clientName ?? '');
-    setClientCatName(client.catName ?? '');
-    setClientAddress(client.address ?? '');
-    setClientEntryNote(client.entryNote ?? '');
-    setClientRequirements(client.requirements ?? '');
+    hydrateClientForm({
+      clientName: client.clientName ?? '',
+      clientCatName: client.catName ?? '',
+      clientAddress: client.address ?? '',
+      clientEntryNote: client.entryNote ?? '',
+      clientRequirements: client.requirements ?? '',
+    });
     setClientModalVisible(true);
-  }, []);
+  }, [hydrateClientForm]);
 
   const handleSaveClient = useCallback(async () => {
     if (!accessToken) return;
@@ -481,6 +495,10 @@ export default function AdminScreen() {
     }
     setShowClientPicker(true);
   }, []);
+
+  const handleOpenBookingFilterClientPicker = useCallback(() => {
+    handleOpenClientPicker('booking-filter');
+  }, [handleOpenClientPicker]);
 
   const handleOpenClientCreateFromBooking = useCallback(() => {
     setPendingBookingCreateOpen(true);
@@ -681,13 +699,15 @@ export default function AdminScreen() {
 
   const handleOpenBookingEdit = useCallback((booking: SittingBooking) => {
     setEditingBooking(booking);
-    setEditBookingDate(new Date(booking.reservationDate));
-    setEditExpectedAmount(String(booking.expectedAmount ?? ''));
-    setEditAmount(String(booking.amount ?? ''));
-    setEditContactMethod(booking.contactMethod ?? '카톡');
-    setEditEntryNote(booking.entryNoteSnapshot ?? '');
+    hydrateBookingEditForm({
+      editBookingDate: new Date(booking.reservationDate),
+      editExpectedAmount: String(booking.expectedAmount ?? ''),
+      editAmount: String(booking.amount ?? ''),
+      editContactMethod: booking.contactMethod ?? '카톡',
+      editEntryNote: booking.entryNoteSnapshot ?? '',
+    });
     setShowBookingEditModal(true);
-  }, []);
+  }, [hydrateBookingEditForm]);
 
   const handleUpdateBooking = useCallback(async () => {
     if (!accessToken || !editingBooking) return;
@@ -765,10 +785,12 @@ export default function AdminScreen() {
 
   const handleOpenCareEdit = useCallback((care: SittingCare) => {
     setEditingCare(care);
-    setEditCareDate(new Date(care.careTime));
-    setEditCareNote(care.note ?? '');
+    hydrateCareEditForm({
+      editCareDate: new Date(care.careTime),
+      editCareNote: care.note ?? '',
+    });
     setShowCareEditModal(true);
-  }, []);
+  }, [hydrateCareEditForm]);
 
   const handleOpenCareFilterDatePicker = useCallback((target: 'from' | 'to') => {
     setCareFilterDateTarget(target);
@@ -882,6 +904,19 @@ export default function AdminScreen() {
     [careMonth],
   );
 
+  const handleClearCareFilters = useCallback(() => {
+    setCareFilterFrom(null);
+    setCareFilterTo(null);
+  }, [setCareFilterFrom, setCareFilterTo]);
+
+  const handleClearBookingClientFilter = useCallback(() => {
+    setBookingClientFilter(null);
+  }, [setBookingClientFilter]);
+
+  const handleOpenCareCreate = useCallback(() => {
+    setShowCareCreateModal(true);
+  }, [setShowCareCreateModal]);
+
   const formatDate = useCallback((date: Date) => {
     return date.toLocaleDateString('ko-KR', {
       year: 'numeric',
@@ -919,391 +954,73 @@ export default function AdminScreen() {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Pressable style={styles.headerSide} onPress={handleOpenDrawer}>
-            <Text style={[styles.headerAction, { color: theme.tint }]}>메뉴</Text>
-          </Pressable>
-          <Text style={[styles.title, { color: theme.text }]}>관리자</Text>
-          <Pressable style={styles.headerSide} onPress={() => router.back()}>
-            <Text style={[styles.headerAction, { color: theme.tint }]}>닫기</Text>
-          </Pressable>
-        </View>
+        <AdminHeader
+          theme={theme}
+          onOpenDrawer={handleOpenDrawer}
+          onClose={handleCloseAdmin}
+        />
 
-        <View style={styles.tabRow}>
-          {(['clients', 'bookings', 'cares'] as AdminTab[]).map((tab) => (
-            <Pressable
-              key={tab}
-              style={[
-                styles.tabButton,
-                activeTab === tab && { backgroundColor: theme.tint },
-              ]}
-              onPress={() => setActiveTab(tab)}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  {
-                    color: activeTab === tab ? '#FFFFFF' : theme.text,
-                  },
-                ]}
-              >
-                {tab === 'clients' ? '고객' : tab === 'bookings' ? '예약' : '케어'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <AdminTabs activeTab={activeTab} onChangeTab={setActiveTab} theme={theme} />
 
         {activeTab === 'clients' && (
-          <>
-            {isLoadingClients ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.tint} />
-              </View>
-            ) : (
-              <>
-                <View style={styles.filterSection}>
-                  <TextInput
-                    style={[
-                      styles.searchInput,
-                      {
-                        backgroundColor: isDark ? '#111827' : '#FFFFFF',
-                        borderColor: isDark ? '#374151' : '#E5E7EB',
-                        color: theme.text,
-                      },
-                    ]}
-                    placeholder="고객 검색 (이름/고양이/주소)"
-                    placeholderTextColor={theme.icon}
-                    value={clientQuery}
-                    onChangeText={setClientQuery}
-                  />
-                </View>
-                <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
-                  {filteredClients.length === 0 ? (
-                    <Text style={[styles.emptyText, { color: theme.icon }]}>
-                      {clients.length === 0
-                        ? '등록된 고객이 없습니다.'
-                        : '검색 결과가 없습니다.'}
-                    </Text>
-                  ) : (
-                    filteredClients.map((client) => (
-                      <View
-                        key={client.id}
-                        style={[
-                          styles.card,
-                          {
-                            backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                            borderColor: isDark ? '#374151' : '#E5E7EB',
-                          },
-                        ]}
-                      >
-                        <Text style={[styles.cardTitle, { color: theme.text }]}>
-                          {client.clientName} · {client.catName}
-                        </Text>
-                        <Text style={[styles.cardSub, { color: theme.icon }]}>
-                          {client.address}
-                        </Text>
-                        {!!client.entryNote && (
-                          <Text style={[styles.cardSub, { color: theme.icon }]}>
-                            {client.entryNote}
-                          </Text>
-                        )}
-                        <View style={styles.cardActions}>
-                          <Pressable onPress={() => handleOpenClientEdit(client)}>
-                            <Text style={[styles.actionText, { color: theme.tint }]}>
-                              수정
-                            </Text>
-                          </Pressable>
-                          <Pressable onPress={() => handleDeleteClient(client)}>
-                            <Text style={[styles.actionText, { color: '#EF4444' }]}>
-                              삭제
-                            </Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    ))
-                  )}
-                </ScrollView>
-              </>
-            )}
-            <Pressable
-              style={[styles.primaryButton, { backgroundColor: theme.tint }]}
-              onPress={handleOpenClientCreate}
-            >
-              <Text style={styles.primaryButtonText}>고객 추가</Text>
-            </Pressable>
-          </>
+          <AdminClientsTab
+            clients={clients}
+            filteredClients={filteredClients}
+            clientQuery={clientQuery}
+            isLoadingClients={isLoadingClients}
+            isDark={isDark}
+            theme={theme}
+            onChangeClientQuery={setClientQuery}
+            onEditClient={handleOpenClientEdit}
+            onDeleteClient={handleDeleteClient}
+            onOpenClientCreate={handleOpenClientCreate}
+          />
         )}
 
         {activeTab === 'bookings' && (
-          <>
-            {isLoadingBookings ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.tint} />
-              </View>
-            ) : (
-              <>
-                <View style={styles.filterSection}>
-                  <TextInput
-                    style={[
-                      styles.searchInput,
-                      {
-                        backgroundColor: isDark ? '#111827' : '#FFFFFF',
-                        borderColor: isDark ? '#374151' : '#E5E7EB',
-                        color: theme.text,
-                      },
-                    ]}
-                    placeholder="예약 검색 (고객/주소/메모)"
-                    placeholderTextColor={theme.icon}
-                    value={bookingQuery}
-                    onChangeText={setBookingQuery}
-                  />
-                  <View style={styles.filterRow}>
-                    {bookingStatusOptions.map((option) => {
-                      const isActive = bookingStatusFilter === option.value;
-                      return (
-                        <Pressable
-                          key={option.value}
-                          style={[
-                            styles.filterChip,
-                            isActive && { backgroundColor: theme.tint, borderColor: theme.tint },
-                          ]}
-                          onPress={() => setBookingStatusFilter(option.value)}
-                        >
-                          <Text
-                            style={[
-                              styles.filterChipText,
-                              { color: isActive ? '#FFFFFF' : theme.text },
-                            ]}
-                          >
-                            {option.label}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                  <View style={styles.filterRow}>
-                    <Pressable
-                      style={[
-                        styles.filterChip,
-                        bookingClientFilter && {
-                          backgroundColor: theme.tint,
-                          borderColor: theme.tint,
-                        },
-                      ]}
-                      onPress={() => handleOpenClientPicker('booking-filter')}
-                    >
-                      <Text
-                        style={[
-                          styles.filterChipText,
-                          { color: bookingClientFilter ? '#FFFFFF' : theme.text },
-                        ]}
-                      >
-                        {bookingClientFilter
-                          ? `${bookingClientFilter.clientName} (${bookingClientFilter.catName})`
-                          : '고객 선택'}
-                      </Text>
-                    </Pressable>
-                    {bookingClientFilter && (
-                      <Pressable
-                        style={styles.filterClearButton}
-                        onPress={() => setBookingClientFilter(null)}
-                      >
-                        <Text style={[styles.filterClearText, { color: theme.tint }]}>
-                          초기화
-                        </Text>
-                      </Pressable>
-                    )}
-                  </View>
-                </View>
-                <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
-                  {filteredBookings.length === 0 ? (
-                    <Text style={[styles.emptyText, { color: theme.icon }]}>
-                      {bookings.length === 0
-                        ? '등록된 예약이 없습니다.'
-                        : '검색 결과가 없습니다.'}
-                    </Text>
-                  ) : (
-                    filteredBookings.map((booking) => (
-                      <View
-                        key={booking.id}
-                        style={[
-                          styles.card,
-                          {
-                            backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                            borderColor: isDark ? '#374151' : '#E5E7EB',
-                          },
-                        ]}
-                      >
-                        <Text style={[styles.cardTitle, { color: theme.text }]}>
-                          {booking.client?.clientName ?? '고객 미지정'} · {booking.catName}
-                        </Text>
-                        <Text style={[styles.cardSub, { color: theme.icon }]}>
-                          {booking.addressSnapshot || '주소 없음'}
-                        </Text>
-                        <Text style={[styles.cardSub, { color: theme.icon }]}>
-                          {formatCareTime(booking.reservationDate)}
-                        </Text>
-                        <View style={styles.cardActions}>
-                          <Pressable onPress={() => handleOpenBookingEdit(booking)}>
-                            <Text style={[styles.actionText, { color: theme.tint }]}>
-                              수정
-                            </Text>
-                          </Pressable>
-                          <Pressable onPress={() => handleCancelBooking(booking)}>
-                            <Text style={[styles.actionText, { color: '#EF4444' }]}>
-                              삭제
-                            </Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    ))
-                  )}
-                </ScrollView>
-              </>
-            )}
-            <Pressable
-              style={[styles.primaryButton, { backgroundColor: theme.tint }]}
-              onPress={handleOpenBookingCreate}
-            >
-              <Text style={styles.primaryButtonText}>예약 추가</Text>
-            </Pressable>
-          </>
+          <AdminBookingsTab
+            bookings={bookings}
+            filteredBookings={filteredBookings}
+            bookingQuery={bookingQuery}
+            bookingStatusFilter={bookingStatusFilter}
+            bookingStatusOptions={bookingStatusOptions}
+            bookingClientFilter={bookingClientFilter}
+            isLoadingBookings={isLoadingBookings}
+            isDark={isDark}
+            theme={theme}
+            onChangeBookingQuery={setBookingQuery}
+            onChangeBookingStatus={setBookingStatusFilter}
+            onOpenClientPicker={handleOpenBookingFilterClientPicker}
+            onClearBookingClientFilter={handleClearBookingClientFilter}
+            onEditBooking={handleOpenBookingEdit}
+            onCancelBooking={handleCancelBooking}
+            onOpenBookingCreate={handleOpenBookingCreate}
+            formatCareTime={formatCareTime}
+          />
         )}
 
         {activeTab === 'cares' && (
-          <>
-            <View style={styles.filterSection}>
-              <TextInput
-                style={[
-                  styles.searchInput,
-                  {
-                    backgroundColor: isDark ? '#111827' : '#FFFFFF',
-                    borderColor: isDark ? '#374151' : '#E5E7EB',
-                    color: theme.text,
-                  },
-                ]}
-                placeholder="케어 검색 (고객/주소)"
-                placeholderTextColor={theme.icon}
-                value={careQuery}
-                onChangeText={setCareQuery}
-              />
-              <View style={styles.filterRow}>
-                <Pressable
-                  style={[
-                    styles.filterChip,
-                    careFilterFrom && { backgroundColor: theme.tint, borderColor: theme.tint },
-                  ]}
-                  onPress={() => handleOpenCareFilterDatePicker('from')}
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      { color: careFilterFrom ? '#FFFFFF' : theme.text },
-                    ]}
-                  >
-                    {careFilterFrom ? `시작 ${formatShortDate(careFilterFrom)}` : '시작일'}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={[
-                    styles.filterChip,
-                    careFilterTo && { backgroundColor: theme.tint, borderColor: theme.tint },
-                  ]}
-                  onPress={() => handleOpenCareFilterDatePicker('to')}
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      { color: careFilterTo ? '#FFFFFF' : theme.text },
-                    ]}
-                  >
-                    {careFilterTo ? `종료 ${formatShortDate(careFilterTo)}` : '종료일'}
-                  </Text>
-                </Pressable>
-                {(careFilterFrom || careFilterTo) && (
-                  <Pressable
-                    style={styles.filterClearButton}
-                    onPress={() => {
-                      setCareFilterFrom(null);
-                      setCareFilterTo(null);
-                    }}
-                  >
-                    <Text style={[styles.filterClearText, { color: theme.tint }]}>
-                      초기화
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
-            </View>
-            {!normalizedCareRange && (
-              <View style={styles.monthRow}>
-                <Pressable onPress={() => handleCareMonthChange('prev')}>
-                  <Text style={[styles.monthArrow, { color: theme.tint }]}>◀</Text>
-                </Pressable>
-                <Text style={[styles.monthLabel, { color: theme.text }]}>
-                  {formatMonthLabel}
-                </Text>
-                <Pressable onPress={() => handleCareMonthChange('next')}>
-                  <Text style={[styles.monthArrow, { color: theme.tint }]}>▶</Text>
-                </Pressable>
-              </View>
-            )}
-            {isLoadingCares ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.tint} />
-              </View>
-            ) : (
-              <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
-                {filteredCares.length === 0 ? (
-                  <Text style={[styles.emptyText, { color: theme.icon }]}>
-                    {cares.length === 0 ? '등록된 케어가 없습니다.' : '검색 결과가 없습니다.'}
-                  </Text>
-                ) : (
-                  filteredCares.map((care) => (
-                    <View
-                      key={care.id}
-                      style={[
-                        styles.card,
-                        {
-                          backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                          borderColor: isDark ? '#374151' : '#E5E7EB',
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.cardTitle, { color: theme.text }]}>
-                        {formatCareTime(care.careTime)}
-                      </Text>
-                      <Text style={[styles.cardSub, { color: theme.icon }]}>
-                        {care.booking?.client?.clientName ?? '고객'} ·{' '}
-                        {care.booking?.catName ?? '-'}
-                      </Text>
-                      <Text style={[styles.cardSub, { color: theme.icon }]}>
-                        {care.booking?.addressSnapshot ?? '주소 없음'}
-                      </Text>
-                      <View style={styles.cardActions}>
-                        <Pressable onPress={() => handleOpenCareEdit(care)}>
-                          <Text style={[styles.actionText, { color: theme.tint }]}>
-                            수정
-                          </Text>
-                        </Pressable>
-                        <Pressable onPress={() => handleDeleteCare(care)}>
-                          <Text style={[styles.actionText, { color: '#EF4444' }]}>
-                            삭제
-                          </Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  ))
-                )}
-              </ScrollView>
-            )}
-            <Pressable
-              style={[styles.primaryButton, { backgroundColor: theme.tint }]}
-              onPress={() => setShowCareCreateModal(true)}
-            >
-              <Text style={styles.primaryButtonText}>케어 추가</Text>
-            </Pressable>
-          </>
+          <AdminCaresTab
+            cares={cares}
+            filteredCares={filteredCares}
+            careQuery={careQuery}
+            careFilterFrom={careFilterFrom}
+            careFilterTo={careFilterTo}
+            normalizedCareRange={normalizedCareRange}
+            isLoadingCares={isLoadingCares}
+            isDark={isDark}
+            theme={theme}
+            formatMonthLabel={formatMonthLabel}
+            onChangeCareQuery={setCareQuery}
+            onOpenCareFilterDatePicker={handleOpenCareFilterDatePicker}
+            onClearCareFilters={handleClearCareFilters}
+            onChangeCareMonth={handleCareMonthChange}
+            onEditCare={handleOpenCareEdit}
+            onDeleteCare={handleDeleteCare}
+            onOpenCareCreate={handleOpenCareCreate}
+            formatShortDate={formatShortDate}
+            formatCareTime={formatCareTime}
+          />
         )}
       </View>
 
@@ -1508,148 +1225,3 @@ export default function AdminScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  headerSide: {
-    width: 64,
-  },
-  headerAction: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-    flex: 1,
-    textAlign: 'center',
-  },
-  tabRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  list: {
-    paddingBottom: 24,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 24,
-    fontSize: 14,
-  },
-  card: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  cardSub: {
-    fontSize: 13,
-    marginTop: 6,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
-  },
-  filterSection: {
-    marginBottom: 12,
-    gap: 8,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    alignItems: 'center',
-  },
-  searchInput: {
-    width: '100%',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-  },
-  filterChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-  },
-  filterChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  filterClearButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-  },
-  filterClearText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  actionText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  primaryButton: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  monthRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  monthArrow: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  monthLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

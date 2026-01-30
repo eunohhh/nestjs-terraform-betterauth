@@ -23,18 +23,18 @@ export default function LoginScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}>
       <View style={styles.content}>
-        <Text style={[styles.title, { color: theme.text }]}>Family Infra</Text>
-        <Text style={[styles.subtitle, { color: theme.icon }]}>Manage your family services simply.</Text>
+        <Text style={[styles.title, { color: theme.text }]}>allrecords</Text>
+        <Text style={[styles.subtitle, { color: theme.icon }]}>Manage our family services simply.</Text>
       </View>
 
       <View style={styles.footer}>
-         {status.tone === 'neutral' && status.label !== 'idle' ? (
-             <ActivityIndicator size="large" color="#0064FF" />
-         ) : (
-            <TouchableOpacity style={styles.button} onPress={startLogin} activeOpacity={0.8}>
-              <Text style={styles.buttonText}>Start with Google</Text>
-            </TouchableOpacity>
-         )}
+        {status.tone === 'neutral' && status.label !== 'idle' ? (
+          <ActivityIndicator size="large" color={theme.tint} />
+        ) : (
+          <TouchableOpacity style={styles.button} onPress={startLogin} activeOpacity={0.8}>
+            <Text style={styles.buttonText}>Start with Google</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
   button: {
-    backgroundColor: '#0064FF', // Toss Blue-ish
+    backgroundColor: Colors["light"].tint,
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: 'center',

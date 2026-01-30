@@ -27,6 +27,7 @@ import {
   type SittingBooking,
   type SittingClient,
 } from '@/lib/sitting-api';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 
 const contactMethodOptions = ['카톡', '숨고', '기타'];
 
@@ -379,7 +380,7 @@ export default function BookingListScreen() {
       <View style={pageStyles.container}>
         <View style={pageStyles.header}>
           <Pressable style={pageStyles.headerSide} onPress={handleOpenDrawer}>
-            <Text style={[pageStyles.headerAction, { color: theme.tint }]}>메뉴</Text>
+            <IconSymbol name="line.3.horizontal" size={24} color={theme.text} />
           </Pressable>
           <Text style={[pageStyles.title, { color: theme.text }]}>예약 목록</Text>
           <Pressable style={pageStyles.headerSide} onPress={() => router.back()}>
@@ -556,6 +557,7 @@ const pageStyles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     fontWeight: '600',
+    marginLeft: 36,
   },
   headerSide: {
     width: 64,

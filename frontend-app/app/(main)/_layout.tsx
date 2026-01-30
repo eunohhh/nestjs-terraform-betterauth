@@ -35,10 +35,10 @@ export default function MainLayout() {
       }}
     >
       <Drawer.Screen
-        name="(tabs)"
+        name="(home)"
         options={{
-          drawerLabel: 'Home',
-          title: 'Home',
+          drawerLabel: '홈',
+          title: '홈',
         }}
       />
       <Drawer.Screen

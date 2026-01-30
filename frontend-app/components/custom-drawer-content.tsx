@@ -49,7 +49,10 @@ export function CustomDrawerContent(props: any) {
                 {/* Dropdown Content */}
                 {dropdownOpen && (
                     <View style={styles.dropdown}>
-                        <TouchableOpacity style={styles.dropdownItem} onPress={() => console.log('My Info')}>
+                        <TouchableOpacity style={styles.dropdownItem} onPress={() => {
+                            setDropdownOpen(false);
+                            router.push('/settings/my-info');
+                        }}>
                             <Text style={[styles.dropdownText, { color: theme.text }]}>My Info</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.dropdownItem} onPress={handleLogout}>

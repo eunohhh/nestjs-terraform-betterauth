@@ -17,31 +17,31 @@ export default function MyInfoScreen() {
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={styles.contentContainer}>
         <View style={styles.header}>
-            <Image
-                source={{ uri: user?.image || 'https://via.placeholder.com/150' }}
-                style={styles.avatar}
-            />
-            <ThemedText type="title" style={styles.name}>{user?.name || 'User Name'}</ThemedText>
-            <ThemedText style={[styles.email, { color: theme.icon }]}>{user?.email || 'user@example.com'}</ThemedText>
+          <Image
+            source={{ uri: user?.image || 'https://via.placeholder.com/150' }}
+            style={styles.avatar}
+          />
+          <ThemedText type="title" style={styles.name}>{user?.name || 'User Name'}</ThemedText>
+          <ThemedText style={[styles.email, { color: theme.icon }]}>{user?.email || 'user@example.com'}</ThemedText>
         </View>
 
         <View style={[styles.section, { backgroundColor: theme.background }]}>
-            <View style={styles.item}>
-                <ThemedText type="defaultSemiBold">User ID</ThemedText>
-                <ThemedText style={{ color: theme.icon, fontSize: 10 }}>{user?.id}</ThemedText>
-            </View>
-            <View style={[styles.separator, { backgroundColor: theme.icon, opacity: 0.2 }]} />
-            
-            <View style={styles.item}>
-                <ThemedText type="defaultSemiBold">Provider</ThemedText>
-                <ThemedText style={{ color: theme.icon }}>Google</ThemedText>
-            </View>
-            <View style={[styles.separator, { backgroundColor: theme.icon, opacity: 0.2 }]} />
+          <View style={styles.item}>
+            <ThemedText type="defaultSemiBold">User ID</ThemedText>
+            <ThemedText style={{ color: theme.icon, fontSize: 10 }}>{user?.id}</ThemedText>
+          </View>
+          <View style={[styles.separator, { backgroundColor: theme.icon, opacity: 0.2 }]} />
 
-            <View style={styles.item}>
-                <ThemedText type="defaultSemiBold">Role</ThemedText>
-                <ThemedText style={{ color: theme.icon }}>{user?.role}</ThemedText>
-            </View>
+          <View style={styles.item}>
+            <ThemedText type="defaultSemiBold">Provider</ThemedText>
+            <ThemedText style={{ color: theme.icon }}>Google</ThemedText>
+          </View>
+          <View style={[styles.separator, { backgroundColor: theme.icon, opacity: 0.2 }]} />
+
+          <View style={styles.item}>
+            <ThemedText type="defaultSemiBold">Role</ThemedText>
+            <ThemedText style={{ color: theme.icon }}>{user?.role}</ThemedText>
+          </View>
         </View>
 
       </ScrollView>
@@ -78,12 +78,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     gap: 16,
-    // Shadow for iOS
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
-    // Elevation for Android
     elevation: 2,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
@@ -95,7 +93,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   separator: {
-      height: 1,
-      width: '100%',
+    height: 1,
+    width: '100%',
   }
 });

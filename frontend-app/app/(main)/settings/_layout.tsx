@@ -1,19 +1,15 @@
 import { Stack } from 'expo-router';
 import React from 'react';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
+import CustomHeader from '@/components/ui/custom-header';
 
 export default function SettingsLayout() {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? 'light'];
-
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: theme.background },
-        headerTintColor: theme.text,
-        headerTitleStyle: { fontWeight: '600' },
+        header: ({ options }) => (
+          <CustomHeader title={options.title ?? ''} />
+        ),
       }}
     >
       <Stack.Screen
@@ -26,12 +22,27 @@ export default function SettingsLayout() {
         name="notifications"
         options={{
           title: '알림 설정',
+          header: ({ options }) => (
+            <CustomHeader title={options.title ?? ''} showDrawerToggle />
+          ),
         }}
       />
       <Stack.Screen
         name="privacy-policy"
         options={{
           title: '개인정보 처리방침',
+          header: ({ options }) => (
+            <CustomHeader title={options.title ?? ''} showDrawerToggle />
+          ),
+        }}
+      />
+      <Stack.Screen
+        name="my-info"
+        options={{
+          title: '내 정보',
+          header: ({ options }) => (
+            <CustomHeader title={options.title ?? ''} showDrawerToggle />
+          ),
         }}
       />
     </Stack>
