@@ -17,6 +17,14 @@ import { UpdateSittingClientDto } from './dto/update-client.dto';
 export class SittingService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async isAdmin(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    return user?.role === 'admin';
+  }
+
   // ==================== CLIENT ====================
 
   async createClient(params: { userId: string; dto: CreateSittingClientDto; appId?: string }) {
@@ -48,7 +56,10 @@ export class SittingService {
     });
 
     if (!client) throw new NotFoundException('Client not found');
-    if (client.userId !== userId) throw new ForbiddenException('Not your client');
+    if (client.userId !== userId) {
+      const isAdmin = await this.isAdmin(userId);
+      if (!isAdmin) throw new ForbiddenException('Not your client');
+    }
 
     return client;
   }
@@ -56,9 +67,10 @@ export class SittingService {
   async getClients(params: { userId: string; appId?: string }) {
     const { userId } = params;
     const appId = params.appId ?? 'catsitter';
+    const isAdmin = await this.isAdmin(userId);
 
     return this.prisma.sittingClient.findMany({
-      where: { userId, appId },
+      where: { appId, ...(isAdmin ? {} : { userId }) },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -78,7 +90,10 @@ export class SittingService {
     });
 
     if (!client) throw new NotFoundException('Client not found');
-    if (client.userId !== userId) throw new ForbiddenException('Not your client');
+    if (client.userId !== userId) {
+      const isAdmin = await this.isAdmin(userId);
+      if (!isAdmin) throw new ForbiddenException('Not your client');
+    }
 
     return this.prisma.sittingClient.update({
       where: { id: clientId },
@@ -99,7 +114,10 @@ export class SittingService {
     });
 
     if (!client) throw new NotFoundException('Client not found');
-    if (client.userId !== userId) throw new ForbiddenException('Not your client');
+    if (client.userId !== userId) {
+      const isAdmin = await this.isAdmin(userId);
+      if (!isAdmin) throw new ForbiddenException('Not your client');
+    }
 
     return this.prisma.$transaction(async (tx) => {
       // Get all bookings for this client
@@ -154,7 +172,10 @@ export class SittingService {
     });
 
     if (!client) throw new NotFoundException('Client not found');
-    if (client.userId !== userId) throw new ForbiddenException('Not your client');
+    if (client.userId !== userId) {
+      const isAdmin = await this.isAdmin(userId);
+      if (!isAdmin) throw new ForbiddenException('Not your client');
+    }
 
     const reservationDateUtc = kstStringToUtcDate(dto.reservationKst);
 
@@ -217,7 +238,10 @@ export class SittingService {
     });
 
     if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.client.userId !== userId) throw new ForbiddenException('Not your booking');
+    if (booking.client.userId !== userId) {
+      const isAdmin = await this.isAdmin(userId);
+      if (!isAdmin) throw new ForbiddenException('Not your booking');
+    }
 
     return booking;
   }
@@ -230,11 +254,12 @@ export class SittingService {
   }) {
     const { userId, clientId, status } = params;
     const appId = params.appId ?? 'catsitter';
+    const isAdmin = await this.isAdmin(userId);
 
     return this.prisma.sittingBooking.findMany({
       where: {
         appId,
-        client: { userId },
+        ...(isAdmin ? {} : { client: { userId } }),
         ...(clientId && { clientId }),
         ...(status && { bookingStatus: status }),
       },
@@ -261,7 +286,10 @@ export class SittingService {
     });
 
     if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.client.userId !== userId) throw new ForbiddenException('Not your booking');
+    if (booking.client.userId !== userId) {
+      const isAdmin = await this.isAdmin(userId);
+      if (!isAdmin) throw new ForbiddenException('Not your booking');
+    }
 
     const updateData: any = { updatedById: userId };
 
@@ -310,7 +338,10 @@ export class SittingService {
     });
 
     if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.client.userId !== userId) throw new ForbiddenException('Not your booking');
+    if (booking.client.userId !== userId) {
+      const isAdmin = await this.isAdmin(userId);
+      if (!isAdmin) throw new ForbiddenException('Not your booking');
+    }
 
     const auditType =
       nextStatus === SittingBookingStatus.CANCELLED
@@ -357,7 +388,10 @@ export class SittingService {
     });
 
     if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.client.userId !== userId) throw new ForbiddenException('Not your booking');
+    if (booking.client.userId !== userId) {
+      const isAdmin = await this.isAdmin(userId);
+      if (!isAdmin) throw new ForbiddenException('Not your booking');
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.sittingBooking.update({
@@ -397,7 +431,10 @@ export class SittingService {
     });
 
     if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.client.userId !== userId) throw new ForbiddenException('Not your booking');
+    if (booking.client.userId !== userId) {
+      const isAdmin = await this.isAdmin(userId);
+      if (!isAdmin) throw new ForbiddenException('Not your booking');
+    }
 
     return this.prisma.$transaction(async (tx) => {
       // Delete related cares first
@@ -433,7 +470,10 @@ export class SittingService {
     });
 
     if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.client.userId !== userId) throw new ForbiddenException('Not your booking');
+    if (booking.client.userId !== userId) {
+      const isAdmin = await this.isAdmin(userId);
+      if (!isAdmin) throw new ForbiddenException('Not your booking');
+    }
 
     const careTimeUtc = kstStringToUtcDate(dto.careTimeKst);
 
@@ -486,7 +526,10 @@ export class SittingService {
     });
 
     if (!care) throw new NotFoundException('Care not found');
-    if (care.booking.client.userId !== userId) throw new ForbiddenException('Not your care');
+    if (care.booking.client.userId !== userId) {
+      const isAdmin = await this.isAdmin(userId);
+      if (!isAdmin) throw new ForbiddenException('Not your care');
+    }
 
     return care;
   }
@@ -501,7 +544,10 @@ export class SittingService {
     });
 
     if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.client.userId !== userId) throw new ForbiddenException('Not your booking');
+    if (booking.client.userId !== userId) {
+      const isAdmin = await this.isAdmin(userId);
+      if (!isAdmin) throw new ForbiddenException('Not your booking');
+    }
 
     return this.prisma.sittingCare.findMany({
       where: { bookingId, appId },
@@ -528,7 +574,10 @@ export class SittingService {
     });
 
     if (!care) throw new NotFoundException('Care not found');
-    if (care.booking.client.userId !== userId) throw new ForbiddenException('Not your care');
+    if (care.booking.client.userId !== userId) {
+      const isAdmin = await this.isAdmin(userId);
+      if (!isAdmin) throw new ForbiddenException('Not your care');
+    }
 
     const updateData: any = { updatedById: userId };
 
@@ -576,7 +625,10 @@ export class SittingService {
     });
 
     if (!care) throw new NotFoundException('Care not found');
-    if (care.booking.client.userId !== userId) throw new ForbiddenException('Not your care');
+    if (care.booking.client.userId !== userId) {
+      const isAdmin = await this.isAdmin(userId);
+      if (!isAdmin) throw new ForbiddenException('Not your care');
+    }
 
     return this.prisma.$transaction(async (tx) => {
       await tx.sittingCare.delete({
@@ -610,6 +662,7 @@ export class SittingService {
   async getCaresForCalendar(params: { userId: string; from: Date; to: Date; appId?: string }) {
     const { userId, from, to } = params;
     const appId = params.appId ?? 'catsitter';
+    const isAdmin = await this.isAdmin(userId);
 
     return this.prisma.sittingCare.findMany({
       where: {
@@ -618,9 +671,7 @@ export class SittingService {
           gte: from,
           lte: to,
         },
-        booking: {
-          client: { userId },
-        },
+        ...(isAdmin ? {} : { booking: { client: { userId } } }),
       },
       include: {
         booking: {
@@ -659,7 +710,10 @@ export class SittingService {
     });
 
     if (!care) throw new NotFoundException('Care not found');
-    if (care.booking.client.userId !== userId) throw new ForbiddenException('Not your care');
+    if (care.booking.client.userId !== userId) {
+      const isAdmin = await this.isAdmin(userId);
+      if (!isAdmin) throw new ForbiddenException('Not your care');
+    }
 
     const isCompleting = care.completedAt === null;
     const now = new Date();

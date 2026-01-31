@@ -138,6 +138,15 @@ export const styles = StyleSheet.create({
   bookingList: {
     maxHeight: 300,
   },
+  searchInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    marginBottom: 12,
+  },
   bookingItem: {
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -145,11 +154,11 @@ export const styles = StyleSheet.create({
     marginBottom: 4,
   },
   bookingName: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  bookingCat: {
     fontSize: 14,
     marginTop: 2,
+  },
+  bookingCat: {
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
