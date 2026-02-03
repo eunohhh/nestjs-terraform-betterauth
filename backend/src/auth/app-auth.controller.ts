@@ -34,23 +34,6 @@ export class AppAuthController {
     return this.appAuthService.exchangeCode(code);
   }
 
-  @Post('review')
-  @AllowAnonymous()
-  async reviewLogin(@Req() request: Request) {
-    const body = request.body as { email?: unknown; password?: unknown } | undefined;
-    const email = body?.email;
-    const password = body?.password;
-
-    if (typeof email !== 'string' || email.length === 0) {
-      throw new BadRequestException('email is required');
-    }
-    if (typeof password !== 'string' || password.length === 0) {
-      throw new BadRequestException('password is required');
-    }
-
-    return this.appAuthService.reviewLogin(email, password);
-  }
-
   @Post('code')
   @AllowAnonymous()
   async createCode(@Req() request: Request) {
@@ -119,6 +102,52 @@ export class AppAuthController {
           credentials: 'same-origin',
           body: JSON.stringify({
             provider: 'google',
+            callbackURL: ${JSON.stringify(callbackURL)}
+          })
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            if (data && data.url) {
+              window.location.href = data.url;
+              return;
+            }
+            document.body.innerText = 'Failed to start login.';
+          })
+          .catch(function () {
+            document.body.innerText = 'Failed to start login.';
+          });
+      })();
+    </script>
+  </body>
+</html>`;
+
+    return response.status(200).type('text/html').send(html);
+  }
+
+  @Get('login/apple')
+  @AllowAnonymous()
+  async loginApple(@Req() request: Request, @Res() response: Response) {
+    const baseUrl = this.getBaseUrl(request);
+    const callbackURL = `${baseUrl}/auth/app/callback`;
+    const signInUrl = `${baseUrl}/api/auth/sign-in/social`;
+
+    const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Signing in...</title>
+  </head>
+  <body>
+    <p>Signing in…</p>
+    <script>
+      (function () {
+        fetch(${JSON.stringify(signInUrl)}, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            provider: 'apple',
             callbackURL: ${JSON.stringify(callbackURL)}
           })
         })

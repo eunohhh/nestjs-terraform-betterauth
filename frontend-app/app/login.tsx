@@ -1,13 +1,11 @@
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
   ActivityIndicator,
-  TextInput,
-  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,15 +15,11 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function LoginScreen() {
-  const { startLogin, startReviewLogin, user, status } = useAuth();
+  const { startGoogleLogin, startAppleLogin, user, status } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
-
-  const [showReviewLogin, setShowReviewLogin] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -33,18 +27,10 @@ export default function LoginScreen() {
     }
   }, [user, router]);
 
-  const handleReviewLogin = async () => {
-    if (!email.trim() || !password.trim()) return;
-    await startReviewLogin(email.trim(), password.trim());
-  };
-
   const isLoading = status.tone === 'neutral' && status.label !== 'idle';
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <View style={[styles.container, { backgroundColor: theme.background, paddingBottom: insets.bottom }]}>
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.text }]}>allrecords</Text>
         <Text style={[styles.subtitle, { color: theme.icon }]}>Manage our family services simply.</Text>
@@ -53,51 +39,23 @@ export default function LoginScreen() {
       <View style={styles.footer}>
         {isLoading ? (
           <ActivityIndicator size="large" color={theme.tint} />
-        ) : showReviewLogin ? (
-          <View style={styles.reviewForm}>
-            <TextInput
-              style={[styles.input, { color: theme.text, borderColor: theme.icon }]}
-              placeholder="Email"
-              placeholderTextColor={theme.icon}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <TextInput
-              style={[styles.input, { color: theme.text, borderColor: theme.icon }]}
-              placeholder="Password"
-              placeholderTextColor={theme.icon}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-            <TouchableOpacity
-              style={[styles.button, (!email.trim() || !password.trim()) && styles.buttonDisabled]}
-              onPress={handleReviewLogin}
-              activeOpacity={0.8}
-              disabled={!email.trim() || !password.trim()}
-            >
-              <Text style={styles.buttonText}>Sign In</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.linkButton}
-              onPress={() => setShowReviewLogin(false)}
-            >
-              <Text style={[styles.linkText, { color: theme.icon }]}>Back to Google Sign In</Text>
-            </TouchableOpacity>
-          </View>
         ) : (
-          <View>
-            <TouchableOpacity style={styles.button} onPress={startLogin} activeOpacity={0.8}>
-              <Text style={styles.buttonText}>Start with Google</Text>
-            </TouchableOpacity>
+          <View style={styles.buttonContainer}>
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity
+                style={[styles.button, styles.appleButton]}
+                onPress={startAppleLogin}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.buttonText}>Continue with Apple</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
-              style={styles.linkButton}
-              onPress={() => setShowReviewLogin(true)}
+              style={[styles.button, styles.googleButton]}
+              onPress={startGoogleLogin}
+              activeOpacity={0.8}
             >
-              <Text style={[styles.linkText, { color: theme.icon }]}>Sign in with Email</Text>
+              <Text style={[styles.buttonText, styles.googleButtonText]}>Continue with Google</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -105,7 +63,7 @@ export default function LoginScreen() {
           <Text style={styles.errorText}>{status.detail}</Text>
         )}
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -131,37 +89,30 @@ const styles = StyleSheet.create({
   footer: {
     paddingVertical: 24,
   },
+  buttonContainer: {
+    gap: 12,
+  },
   button: {
-    backgroundColor: Colors['light'].tint,
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonDisabled: {
-    opacity: 0.5,
+  appleButton: {
+    backgroundColor: '#000000',
+  },
+  googleButton: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#dadce0',
   },
   buttonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
   },
-  linkButton: {
-    marginTop: 16,
-    alignItems: 'center',
-  },
-  linkText: {
-    fontSize: 14,
-  },
-  reviewForm: {
-    gap: 12,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
+  googleButtonText: {
+    color: '#3c4043',
   },
   errorText: {
     color: '#dc2626',

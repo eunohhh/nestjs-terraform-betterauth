@@ -9,7 +9,6 @@ import {
   formatApiError,
   getApiBaseUrl,
   getStoredToken,
-  reviewLogin,
   setStoredToken,
   type AppUser,
 } from '@/lib/auth-api';
@@ -29,8 +28,8 @@ type AuthContextValue = {
   accessToken: string | null;
   user: AppUser | null;
   isLoading: boolean;
-  startLogin: () => Promise<void>;
-  startReviewLogin: (email: string, password: string) => Promise<void>;
+  startGoogleLogin: () => Promise<void>;
+  startAppleLogin: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -175,10 +174,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [refreshProfile]);
 
-  const startLogin = useCallback(async () => {
+  const startGoogleLogin = useCallback(async () => {
     try {
       setStatus({ tone: 'neutral', label: 'starting login...' });
       const loginUrl = `${apiBaseUrl}/auth/app/login/google`;
+      const result = await WebBrowser.openAuthSessionAsync(loginUrl, redirectUrl);
+
+      if (result.type === 'success' && result.url) {
+        handleRedirect(result.url);
+        return;
+      }
+
+      if (result.type === 'cancel') {
+        setStatus({ tone: 'warning', label: 'login cancelled' });
+        return;
+      }
+
+      setStatus({ tone: 'warning', label: `login ended: ${result.type}` });
+    } catch (error) {
+      setErrorStatus(formatApiError(error));
+    }
+  }, [apiBaseUrl, handleRedirect, redirectUrl, setErrorStatus]);
+
+  const startAppleLogin = useCallback(async () => {
+    try {
+      setStatus({ tone: 'neutral', label: 'starting login...' });
+      const loginUrl = `${apiBaseUrl}/auth/app/login/apple`;
       const result = await WebBrowser.openAuthSessionAsync(loginUrl, redirectUrl);
 
       if (result.type === 'success' && result.url) {
@@ -202,19 +223,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setStatus({ tone: 'neutral', label: 'logged out' });
   }, [clearSession]);
 
-  const startReviewLogin = useCallback(async (email: string, password: string) => {
-    try {
-      setStatus({ tone: 'neutral', label: 'logging in...' });
-      const data = await reviewLogin(email, password);
-      await setStoredToken(data.accessToken);
-      setAccessToken(data.accessToken);
-      setUser(data.user);
-      setStatus({ tone: 'success', label: 'authenticated' });
-    } catch (error) {
-      setErrorStatus(formatApiError(error));
-    }
-  }, [setErrorStatus]);
-
   const value = useMemo<AuthContextValue>(
     () => ({
       apiBaseUrl,
@@ -223,12 +231,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       accessToken,
       user,
       isLoading,
-      startLogin,
-      startReviewLogin,
+      startGoogleLogin,
+      startAppleLogin,
       refreshProfile: () => refreshProfile(),
       logout,
     }),
-    [apiBaseUrl, redirectUrl, status, accessToken, user, isLoading, startLogin, startReviewLogin, refreshProfile, logout],
+    [apiBaseUrl, redirectUrl, status, accessToken, user, isLoading, startGoogleLogin, startAppleLogin, refreshProfile, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

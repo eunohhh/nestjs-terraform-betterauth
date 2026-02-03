@@ -21,7 +21,10 @@ const isEmailAllowed = (email: string | null | undefined): boolean => {
   if (!allowedEmails) {
     return true; // 환경 변수 미설정 시 모든 이메일 허용
   }
-  const emailList = allowedEmails.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  const emailList = allowedEmails
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
   return emailList.includes(email.toLowerCase());
 };
 
@@ -59,6 +62,11 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
       prompt: 'select_account',
     },
+    apple: {
+      clientId: process.env.APPLE_CLIENT_ID ?? '',
+      clientSecret: process.env.APPLE_CLIENT_SECRET ?? '',
+      appBundleIdentifier: process.env.APPLE_APP_BUNDLE_IDENTIFIER ?? '',
+    },
   },
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7일
@@ -85,6 +93,7 @@ export const auth = betterAuth({
     process.env.FRONTEND_URL,
     process.env.APP_URL,
     process.env.APP_URL?.replace('/--', ''),
+    'https://appleid.apple.com',
   ].filter((origin): origin is string => !!origin),
 });
 

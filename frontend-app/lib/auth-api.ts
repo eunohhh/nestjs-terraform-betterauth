@@ -48,15 +48,6 @@ export const exchangeCode = async (code: string): Promise<TokenResponse> => {
   }
 };
 
-export const reviewLogin = async (email: string, password: string): Promise<TokenResponse> => {
-  try {
-    const response = await api.post('/auth/app/review', { email, password });
-    return response.data as TokenResponse;
-  } catch (error) {
-    throw normalizeApiError(error);
-  }
-};
-
 export const fetchMe = async (token: string): Promise<AppUser | null> => {
   try {
     const response = await api.get('/auth/app/me', {

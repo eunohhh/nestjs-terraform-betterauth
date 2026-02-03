@@ -22,7 +22,7 @@ locals {
     }
   ]
 
-# NOTE: Must be set as Secret Manager secrets
+  # NOTE: Must be set as Secret Manager secrets
   container_secrets = [
     {
       name      = "BETTER_AUTH_SECRET"
@@ -61,8 +61,16 @@ locals {
       valueFrom = "${local.secret_arn}:ALLOWED_EMAILS::"
     },
     {
-      name      = "ALLOW_REVIEW_LOGIN"
-      valueFrom = "${local.secret_arn}:ALLOW_REVIEW_LOGIN::"
+      name      = "APPLE_CLIENT_ID"
+      valueFrom = "${local.secret_arn}:APPLE_CLIENT_ID::"
+    },
+    {
+      name      = "APPLE_CLIENT_SECRET"
+      valueFrom = "${local.secret_arn}:APPLE_CLIENT_SECRET::"
+    },
+    {
+      name      = "APPLE_APP_BUNDLE_IDENTIFIER"
+      valueFrom = "${local.secret_arn}:APPLE_APP_BUNDLE_IDENTIFIER::"
     }
   ]
 }
