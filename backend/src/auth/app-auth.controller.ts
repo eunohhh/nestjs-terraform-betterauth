@@ -62,6 +62,12 @@ export class AppAuthController {
   @Get('callback')
   @AllowAnonymous()
   async callback(@Req() request: Request, @Res() response: Response) {
+    // Better Auth 에러 리다이렉트 처리
+    const error = request.query.error;
+    if (typeof error === 'string') {
+      return response.redirect(this.buildDeepLink({ error }));
+    }
+
     const headers = this.toHeaders(request);
     const session = await auth.api.getSession({ headers });
 
@@ -102,7 +108,8 @@ export class AppAuthController {
           credentials: 'same-origin',
           body: JSON.stringify({
             provider: 'google',
-            callbackURL: ${JSON.stringify(callbackURL)}
+            callbackURL: ${JSON.stringify(callbackURL)},
+            errorCallbackURL: ${JSON.stringify(callbackURL)}
           })
         })
           .then(function (res) { return res.json(); })
@@ -148,7 +155,8 @@ export class AppAuthController {
           credentials: 'same-origin',
           body: JSON.stringify({
             provider: 'apple',
-            callbackURL: ${JSON.stringify(callbackURL)}
+            callbackURL: ${JSON.stringify(callbackURL)},
+            errorCallbackURL: ${JSON.stringify(callbackURL)}
           })
         })
           .then(function (res) { return res.json(); })
