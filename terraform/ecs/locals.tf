@@ -71,6 +71,11 @@ locals {
     {
       name      = "APPLE_APP_BUNDLE_IDENTIFIER"
       valueFrom = "${local.secret_arn}:APPLE_APP_BUNDLE_IDENTIFIER::"
+    },
+    {
+      name      = "ALLOW_REVIEW_LOGIN"
+      valueFrom = "${local.secret_arn}:ALLOW_REVIEW_LOGIN::"
+
     }
   ]
 }
