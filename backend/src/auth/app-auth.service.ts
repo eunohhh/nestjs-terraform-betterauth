@@ -7,6 +7,7 @@ const APP_JWT_ISSUER = 'family-infra-backend';
 const APP_JWT_AUDIENCE = 'app';
 const DEFAULT_APP_JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const APP_LOGIN_CODE_TTL_SECONDS = 60 * 2;
+const REVIEW_USER_ID_PREFIX = 'review-user-';
 
 @Injectable()
 export class AppAuthService {
@@ -83,6 +84,68 @@ export class AppAuthService {
     });
 
     return { code, expiresAt };
+  }
+
+  async reviewLogin(email: string, password: string) {
+    const reviewCredentials = this.getReviewCredentials();
+    if (!reviewCredentials) {
+      throw new UnauthorizedException('Review login is not enabled');
+    }
+
+    if (email !== reviewCredentials.email || password !== reviewCredentials.password) {
+      throw new UnauthorizedException('Invalid review credentials');
+    }
+
+    // 리뷰 사용자 조회 또는 생성 (외부 OAuth 없이 앱 심사용)
+    const reviewUserId = `${REVIEW_USER_ID_PREFIX}${email}`;
+    let user = await this.prisma.user.findUnique({
+      where: { id: reviewUserId },
+      select: { id: true, name: true, email: true, image: true, role: true },
+    });
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          id: reviewUserId,
+          email,
+          name: 'App Store Reviewer',
+          emailVerified: true,
+          role: 'user',
+        },
+        select: { id: true, name: true, email: true, image: true, role: true },
+      });
+    }
+
+    const accessToken = await this.signToken(user.id);
+
+    return {
+      accessToken,
+      tokenType: 'Bearer',
+      expiresIn: this.expiresInSeconds,
+      user,
+    };
+  }
+
+  private getReviewCredentials(): { email: string; password: string } | null {
+    const allowReviewLogin = process.env.ALLOW_REVIEW_LOGIN;
+    if (!allowReviewLogin || allowReviewLogin === 'false') {
+      return null;
+    }
+
+    // 형식: email,password
+    const parts = allowReviewLogin.split(',');
+    if (parts.length < 2) {
+      return null;
+    }
+
+    const email = parts[0].trim();
+    const password = parts.slice(1).join(',').trim(); // 비밀번호에 콤마가 있을 수 있음
+
+    if (!email || !password) {
+      return null;
+    }
+
+    return { email, password };
   }
 
   async verifyToken(token: string): Promise<string> {

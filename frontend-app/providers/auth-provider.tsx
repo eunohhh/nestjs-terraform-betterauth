@@ -10,6 +10,7 @@ import {
   getApiBaseUrl,
   getStoredToken,
   setStoredToken,
+  reviewLogin,
   type AppUser,
 } from '@/lib/auth-api';
 
@@ -30,6 +31,7 @@ type AuthContextValue = {
   isLoading: boolean;
   startGoogleLogin: () => Promise<void>;
   startAppleLogin: () => Promise<void>;
+  startReviewLogin: (email: string, password: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -218,6 +220,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [apiBaseUrl, handleRedirect, redirectUrl, setErrorStatus]);
 
+  const startReviewLogin = useCallback(
+    async (email: string, password: string) => {
+      try {
+        setStatus({ tone: 'neutral', label: 'logging in...' });
+        const data = await reviewLogin(email, password);
+        await setStoredToken(data.accessToken);
+        setAccessToken(data.accessToken);
+        setUser(data.user);
+        setStatus({ tone: 'success', label: 'authenticated' });
+      } catch (error) {
+        setErrorStatus(formatApiError(error));
+      }
+    },
+    [setErrorStatus],
+  );
+
   const logout = useCallback(async () => {
     await clearSession();
     setStatus({ tone: 'neutral', label: 'logged out' });
@@ -233,10 +251,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       isLoading,
       startGoogleLogin,
       startAppleLogin,
+      startReviewLogin,
       refreshProfile: () => refreshProfile(),
       logout,
     }),
-    [apiBaseUrl, redirectUrl, status, accessToken, user, isLoading, startGoogleLogin, startAppleLogin, refreshProfile, logout],
+    [apiBaseUrl, redirectUrl, status, accessToken, user, isLoading, startGoogleLogin, startAppleLogin, startReviewLogin, refreshProfile, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
