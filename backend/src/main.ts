@@ -9,6 +9,11 @@ async function bootstrap() {
   });
 
   app.use('/auth/app', json({ limit: '1mb' }));
+  app.use('/graphql', json({ limit: '1mb' }));
+
+  // GraphQL (Historian / Timeline prototype)
+  const { yoga } = await import('./graphql/yoga.js');
+  app.use('/graphql', yoga);
 
   // ALB 등 프록시 뒤에서 클라이언트 IP(X-Forwarded-For)를 올바르게 인식
   app.set('trust proxy', 1);
