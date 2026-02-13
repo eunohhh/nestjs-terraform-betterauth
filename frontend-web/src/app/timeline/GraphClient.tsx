@@ -1,7 +1,7 @@
 'use client';
 
 import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation } from 'd3-force';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type HistorianEventNode = {
   id: string;
@@ -76,7 +76,7 @@ export default function GraphClient() {
     return () => ro.disconnect();
   }, []);
 
-  const fetchGraph = async () => {
+  const fetchGraph = useCallback(async () => {
     setError(null);
     try {
       const res = await fetch(`${API_BASE}/graphql`, {
@@ -102,7 +102,7 @@ export default function GraphClient() {
       setError(e instanceof Error ? e.message : 'Failed to load graph');
       setGraph(null);
     }
-  };
+  }, [limit]);
 
   const ingest = async () => {
     setError(null);
@@ -127,8 +127,7 @@ export default function GraphClient() {
 
   useEffect(() => {
     void fetchGraph();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [limit]);
+  }, [fetchGraph]);
 
   const adjacency = useMemo(() => {
     const map = new Map<string, Set<string>>();
@@ -136,8 +135,8 @@ export default function GraphClient() {
     for (const e of graph.edges) {
       if (!map.has(e.from)) map.set(e.from, new Set());
       if (!map.has(e.to)) map.set(e.to, new Set());
-      map.get(e.from)!.add(e.to);
-      map.get(e.to)!.add(e.from);
+      map.get(e.from)?.add(e.to);
+      map.get(e.to)?.add(e.from);
     }
     return map;
   }, [graph]);
@@ -158,7 +157,11 @@ export default function GraphClient() {
   const [simNodes, simLinks] = useMemo(() => {
     if (!graph) return [[], []] as [SimNode[], SimLink[]];
     const nodes: SimNode[] = graph.nodes.map((n) => ({ ...n }));
-    const links: SimLink[] = graph.edges.map((e) => ({ source: e.from, target: e.to, type: e.type }));
+    const links: SimLink[] = graph.edges.map((e) => ({
+      source: e.from,
+      target: e.to,
+      type: e.type,
+    }));
     return [nodes, links];
   }, [graph]);
 
@@ -183,7 +186,12 @@ export default function GraphClient() {
       .force('charge', forceManyBody().strength(-160))
       .force('center', forceCenter(size.w / 2, size.h / 2))
       .force('link', linkForce)
-      .force('collide', forceCollide<SimNode>().radius((d) => (isTopic(d) ? 18 : 14)).strength(0.9));
+      .force(
+        'collide',
+        forceCollide<SimNode>()
+          .radius((d) => (isTopic(d) ? 18 : 14))
+          .strength(0.9),
+      );
 
     let raf = 0;
     sim.on('tick', () => {
@@ -233,10 +241,13 @@ export default function GraphClient() {
     <div className="grid gap-4 md:grid-cols-[1fr_360px]">
       <div className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <div className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Historian Graph</div>
+          <div className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+            Historian Graph
+          </div>
           <div className="ml-auto flex items-center gap-2">
-            <label className="text-xs text-zinc-500">limit</label>
+            <label htmlFor="graph-limit" className="text-xs text-zinc-500">limit</label>
             <input
+              id="graph-limit"
               className="w-20 rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
               type="number"
               min={10}
@@ -245,6 +256,7 @@ export default function GraphClient() {
               onChange={(e) => setLimit(Number(e.target.value))}
             />
             <button
+              type="button"
               className="rounded-md border border-zinc-200 px-3 py-1 text-sm hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
               onClick={fetchGraph}
             >
@@ -257,6 +269,7 @@ export default function GraphClient() {
               onChange={(e) => setIngestKey(e.target.value)}
             />
             <button
+              type="button"
               className="rounded-md bg-zinc-900 px-3 py-1 text-sm text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
               onClick={ingest}
               disabled={!ingestKey}
@@ -274,12 +287,23 @@ export default function GraphClient() {
         )}
 
         <div className="h-[560px] w-full" onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
-          <svg ref={svgRef} className="h-full w-full select-none" role="img" aria-label="Historian graph">
+          <svg
+            ref={svgRef}
+            className="h-full w-full select-none"
+            role="img"
+            aria-label="Historian graph"
+          >
             {/* edges */}
             <g opacity={0.65}>
               {simLinks.map((l, idx) => {
-                const s = typeof l.source === 'string' ? simNodes.find((n) => n.id === l.source) : (l.source as SimNode);
-                const t = typeof l.target === 'string' ? simNodes.find((n) => n.id === l.target) : (l.target as SimNode);
+                const s =
+                  typeof l.source === 'string'
+                    ? simNodes.find((n) => n.id === l.source)
+                    : (l.source as SimNode);
+                const t =
+                  typeof l.target === 'string'
+                    ? simNodes.find((n) => n.id === l.target)
+                    : (l.target as SimNode);
                 if (!s || !t || s.x == null || t.x == null) return null;
                 const isHL = selectedId ? highlighted.has(s.id) && highlighted.has(t.id) : false;
                 const stroke = l.type === 'THEME' ? '#10b981' : '#a1a1aa';
@@ -317,7 +341,12 @@ export default function GraphClient() {
                     onPointerDown={(e) => onPointerDownNode(e, n.id)}
                     style={{ cursor: 'pointer', opacity: hl ? 1 : 0.18 }}
                   >
-                    <circle r={r} fill={fill} stroke={stroke} strokeWidth={selectedId === n.id ? 3 : 1.2} />
+                    <circle
+                      r={r}
+                      fill={fill}
+                      stroke={stroke}
+                      strokeWidth={selectedId === n.id ? 3 : 1.2}
+                    />
                     <text x={r + 6} y={4} fontSize={11} fill={topic ? '#065f46' : '#1f2937'}>
                       {n.title.length > 40 ? `${n.title.slice(0, 40)}…` : n.title}
                     </text>
@@ -329,7 +358,8 @@ export default function GraphClient() {
         </div>
 
         <div className="mt-3 text-xs text-zinc-500">
-          Blue = event, Green = theme/topic. Click a node to highlight 1-hop neighborhood. Drag nodes to adjust.
+          Blue = event, Green = theme/topic. Click a node to highlight 1-hop neighborhood. Drag
+          nodes to adjust.
           <span className="sr-only">render tick {renderTick}</span>
         </div>
       </div>
@@ -342,7 +372,9 @@ export default function GraphClient() {
         {selected && (
           <div className="space-y-3">
             <div>
-              <div className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{labelFor(selected)}</div>
+              <div className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+                {labelFor(selected)}
+              </div>
               {selected.theme && (
                 <div className="mt-1 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
                   {selected.theme}
@@ -374,6 +406,7 @@ export default function GraphClient() {
                   const topic = isTopic(n);
                   return (
                     <button
+                      type="button"
                       key={id}
                       onClick={() => setSelectedId(id)}
                       className={`rounded-full border px-2 py-1 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-900 ${
