@@ -105,8 +105,8 @@ export default function LoginScreen() {
               <Text style={[styles.buttonText, styles.googleButtonText]}>Continue with Google</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.linkButton} onPress={() => setShowReviewLogin(true)}>
-              <Text style={[styles.linkText, { color: theme.icon }]}>Sign in with Email</Text>
+            <TouchableOpacity style={[styles.button, styles.emailButton]} onPress={() => setShowReviewLogin(true)}>
+              <Text style={[styles.buttonText, styles.emailButtonText]}>Sign in with Email</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -157,20 +157,28 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   appleButton: {
-    backgroundColor: '#000000',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#dadce0',
   },
   googleButton: {
+    backgroundColor: '#000000',
+  },
+  emailButton: {
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#dadce0',
   },
   buttonText: {
-    color: '#fff',
+    color: '#000000',
     fontSize: 18,
     fontWeight: '600',
   },
   googleButtonText: {
-    color: '#3c4043',
+    color: '#ffffff',
+  },
+  emailButtonText: {
+    color: '#000000',
   },
   linkButton: {
     marginTop: 16,
