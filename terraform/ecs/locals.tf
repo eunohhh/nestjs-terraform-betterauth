@@ -75,7 +75,30 @@ locals {
     {
       name      = "ALLOW_REVIEW_LOGIN"
       valueFrom = "${local.secret_arn}:ALLOW_REVIEW_LOGIN::"
-
-    }
+    },
+    {
+      name      = "NEO4J_URI"
+      valueFrom = "${local.secret_arn}:NEO4J_URI::"
+    },
+    {
+      name      = "NEO4J_USERNAME"
+      valueFrom = "${local.secret_arn}:NEO4J_USERNAME::"
+    },
+    {
+      name      = "NEO4J_PASSWORD"
+      valueFrom = "${local.secret_arn}:NEO4J_PASSWORD::"
+    },
+    {
+      name      = "NEO4J_DATABASE"
+      valueFrom = "${local.secret_arn}:NEO4J_DATABASE::"
+    },
+    {
+      name      = "AURA_INSTANCEID"
+      valueFrom = "${local.secret_arn}:AURA_INSTANCEID::"
+    },
+    {
+      name      = "AURA_INSTANCENAME"
+      valueFrom = "${local.secret_arn}:AURA_INSTANCENAME::"
+    },
   ]
 }
