@@ -25,6 +25,7 @@
     "prisma:studio": "pnpm --dir backend prisma:studio",
     "build-ecs": "./scripts/build.sh",
     "deploy-ecs": "./scripts/deploy.sh",
-    "deploy": "pnpm build-ecs && pnpm deploy-ecs"
+    "deploy": "pnpm build-ecs && pnpm deploy-ecs",
+    "ingest": "pnpm --dir backend ingest"
   }
 }
