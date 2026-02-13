@@ -51,20 +51,32 @@ const parseFrontmatter = (markdown: string): { attrs: Record<string, string>; bo
 export async function loadHistorianEvents(opts?: {
   historianDir?: string;
   limit?: number;
+  since?: string; // YYYY-MM-DD inclusive
+  until?: string; // YYYY-MM-DD inclusive
 }): Promise<HistorianEvent[]> {
   const historianDir = opts?.historianDir ?? process.env.HISTORIAN_DIR ?? DEFAULT_HISTORIAN_DIR;
   const limit = opts?.limit ?? 200;
+  const since = opts?.since;
+  const until = opts?.until;
 
   let files = await readdir(historianDir);
   files = files.filter((f) => f.endsWith('.md'));
 
-  const parsed = files
+  let parsed = files
     .map((f) => {
       const meta = parseHistorianFilename(f);
       if (!meta) return null;
       return { filename: f, ...meta };
     })
     .filter((x): x is { filename: string; created: string; title: string } => Boolean(x));
+
+  // date range filter (YYYY-MM-DD string comparison)
+  if (since) {
+    parsed = parsed.filter((x) => x.created >= since);
+  }
+  if (until) {
+    parsed = parsed.filter((x) => x.created <= until);
+  }
 
   // newest first
   parsed.sort((a, b) => (a.created < b.created ? 1 : a.created > b.created ? -1 : 0));

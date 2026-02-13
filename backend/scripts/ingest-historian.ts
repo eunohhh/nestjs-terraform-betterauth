@@ -9,12 +9,18 @@ type Args = {
   files: string;
   limit: number;
   dryRun: boolean;
+  since?: string; // YYYY-MM-DD
+  until?: string; // YYYY-MM-DD
 };
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function parseArgs(argv: string[]): Args {
   let files = DEFAULT_HISTORIAN_DIR;
   let limit = 200;
   let dryRun = false;
+  let since: string | undefined;
+  let until: string | undefined;
 
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -31,6 +37,24 @@ function parseArgs(argv: string[]): Args {
         throw new Error(`Invalid --limit: ${argv[i + 1]}`);
       }
       limit = Math.floor(n);
+      i++;
+      continue;
+    }
+
+    if (a === '--since' && argv[i + 1]) {
+      if (!DATE_RE.test(argv[i + 1])) {
+        throw new Error(`Invalid --since date (expected YYYY-MM-DD): ${argv[i + 1]}`);
+      }
+      since = argv[i + 1];
+      i++;
+      continue;
+    }
+
+    if (a === '--until' && argv[i + 1]) {
+      if (!DATE_RE.test(argv[i + 1])) {
+        throw new Error(`Invalid --until date (expected YYYY-MM-DD): ${argv[i + 1]}`);
+      }
+      until = argv[i + 1];
       i++;
       continue;
     }
@@ -53,12 +77,12 @@ function parseArgs(argv: string[]): Args {
     }
   }
 
-  return { files, limit, dryRun };
+  return { files, limit, dryRun, since, until };
 }
 
 function printHelpAndExit(code: number): never {
   // eslint-disable-next-line no-console
-  console.log(`\nIngest Obsidian Historian notes into Neo4j\n\nUsage:\n  pnpm ingest\n  pnpm ingest -- --files "/path/to/vault/historian"\n\nOptions:\n  --files, --dir   Path to historian directory (default: ${DEFAULT_HISTORIAN_DIR})\n  --limit          Max number of markdown files to ingest (default: 200)\n  --dry-run        Parse files and build graph, but do not write to Neo4j\n\nNeo4j env required:\n  NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, (optional) NEO4J_DATABASE\n`);
+  console.log(`\nIngest Obsidian Historian notes into Neo4j\n\nUsage:\n  pnpm ingest\n  pnpm ingest -- --files "/path/to/vault/historian"\n  pnpm ingest -- --since 2026-02-01 --until 2026-02-13\n\nOptions:\n  --files, --dir   Path to historian directory (default: ${DEFAULT_HISTORIAN_DIR})\n  --limit          Max number of markdown files to ingest (default: 200)\n  --since          Start date inclusive, YYYY-MM-DD (e.g. 2026-01-01)\n  --until          End date inclusive, YYYY-MM-DD (e.g. 2026-02-13)\n  --dry-run        Parse files and build graph, but do not write to Neo4j\n\nNeo4j env required:\n  NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, (optional) NEO4J_DATABASE\n`);
   process.exit(code);
 }
 
@@ -68,9 +92,18 @@ async function main() {
   // eslint-disable-next-line no-console
   console.log(`[ingest] historianDir=${args.files}`);
   // eslint-disable-next-line no-console
-  console.log(`[ingest] limit=${args.limit} dryRun=${args.dryRun}`);
+  console.log(
+    `[ingest] limit=${args.limit} dryRun=${args.dryRun}` +
+      (args.since ? ` since=${args.since}` : '') +
+      (args.until ? ` until=${args.until}` : ''),
+  );
 
-  const events = await loadHistorianEvents({ historianDir: args.files, limit: args.limit });
+  const events = await loadHistorianEvents({
+    historianDir: args.files,
+    limit: args.limit,
+    since: args.since,
+    until: args.until,
+  });
   const edges = buildTimelineEdges(events);
 
   // eslint-disable-next-line no-console
