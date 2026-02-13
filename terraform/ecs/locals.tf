@@ -100,5 +100,9 @@ locals {
       name      = "AURA_INSTANCENAME"
       valueFrom = "${local.secret_arn}:AURA_INSTANCENAME::"
     },
+    {
+      name      = "GRAPHQL_ADMIN_KEY"
+      valueFrom = "${local.secret_arn}:GRAPHQL_ADMIN_KEY::"
+    },
   ]
 }
