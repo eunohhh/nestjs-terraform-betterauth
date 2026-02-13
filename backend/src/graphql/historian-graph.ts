@@ -7,6 +7,8 @@ export type HistorianEvent = {
   title: string;
   content: string;
   sourcePath: string;
+  theme?: string | null;
+  source?: string | null;
 };
 
 export type GraphEdge = {
@@ -24,11 +26,26 @@ const parseHistorianFilename = (filename: string) => {
   return { created: match[1], title: match[2] };
 };
 
-const stripFrontmatter = (markdown: string) => {
-  if (!markdown.startsWith('---')) return markdown;
+const parseFrontmatter = (markdown: string): { attrs: Record<string, string>; body: string } => {
+  if (!markdown.startsWith('---')) return { attrs: {}, body: markdown };
   const end = markdown.indexOf('\n---', 3);
-  if (end === -1) return markdown;
-  return markdown.slice(end + '\n---'.length).replace(/^\s+/, '');
+  if (end === -1) return { attrs: {}, body: markdown };
+
+  const raw = markdown.slice(3, end).trim();
+  const body = markdown.slice(end + '\n---'.length).replace(/^\s+/, '');
+
+  // Minimal YAML-ish parser: key: value (supports quoted strings)
+  const attrs: Record<string, string> = {};
+  for (const line of raw.split('\n')) {
+    const idx = line.indexOf(':');
+    if (idx === -1) continue;
+    const key = line.slice(0, idx).trim();
+    let value = line.slice(idx + 1).trim();
+    value = value.replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+    if (key) attrs[key] = value;
+  }
+
+  return { attrs, body };
 };
 
 export async function loadHistorianEvents(opts?: {
@@ -58,13 +75,15 @@ export async function loadHistorianEvents(opts?: {
     selected.map(async ({ filename, created, title }) => {
       const sourcePath = path.join(historianDir, filename);
       const raw = await readFile(sourcePath, 'utf-8');
-      const content = stripFrontmatter(raw);
+      const { attrs, body } = parseFrontmatter(raw);
       return {
         id: `historian:${created}:${title}`,
         created,
         title,
-        content,
+        content: body,
         sourcePath,
+        theme: attrs.theme ?? null,
+        source: attrs.source ?? null,
       } satisfies HistorianEvent;
     }),
   );
