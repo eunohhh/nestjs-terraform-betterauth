@@ -56,6 +56,14 @@ export default function GraphClient() {
   const [limit, setLimit] = useState(60);
   const [ingestKey, setIngestKey] = useState('');
 
+  const [newCreated, setNewCreated] = useState('');
+  const [newTitle, setNewTitle] = useState('');
+  const [newTheme, setNewTheme] = useState('');
+  const [newSource, setNewSource] = useState('Historian by OpenClaw');
+  const [newSourcePath, setNewSourcePath] = useState('');
+  const [newContent, setNewContent] = useState('');
+  const [linkFromSelected, setLinkFromSelected] = useState(true);
+
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [size, setSize] = useState({ w: 900, h: 560 });
 
@@ -104,7 +112,7 @@ export default function GraphClient() {
     }
   }, [limit]);
 
-  const ingest = async () => {
+  const ingest = async (payload: { event: any; previousEventId?: string | null }) => {
     setError(null);
     try {
       const res = await fetch(`/api/ingest`, {
@@ -113,7 +121,7 @@ export default function GraphClient() {
           'Content-Type': 'application/json',
           'X-Ingest-Key': ingestKey,
         },
-        body: JSON.stringify({ limit: 200 }),
+        body: JSON.stringify(payload),
       });
       const json = (await res.json()) as any;
       if (!res.ok) {
@@ -268,15 +276,7 @@ export default function GraphClient() {
               value={ingestKey}
               onChange={(e) => setIngestKey(e.target.value)}
             />
-            <button
-              type="button"
-              className="rounded-md bg-zinc-900 px-3 py-1 text-sm text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
-              onClick={ingest}
-              disabled={!ingestKey}
-              title={!ingestKey ? 'Enter ingest key to enable' : 'Ingest historian into Neo4j'}
-            >
-              Ingest → Neo4j
-            </button>
+            <div className="text-xs text-zinc-500">(Key is required to add content)</div>
           </div>
         </div>
 
@@ -365,64 +365,136 @@ export default function GraphClient() {
       </div>
 
       <aside className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">Details</div>
-
-        {!selected && <div className="text-sm text-zinc-500">Select a node.</div>}
-
-        {selected && (
-          <div className="space-y-3">
-            <div>
-              <div className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                {labelFor(selected)}
-              </div>
-              {selected.theme && (
-                <div className="mt-1 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
-                  {selected.theme}
-                </div>
-              )}
-              {selected.source && (
-                <div className="mt-1 text-xs text-zinc-500">source: {selected.source}</div>
-              )}
-            </div>
-
-            {!isTopic(selected) && (
-              <>
-                <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm leading-6 text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-200">
-                  {selected.content.trim().slice(0, 500)}
-                  {selected.content.trim().length > 500 ? '…' : ''}
-                </div>
-                {selected.sourcePath && (
-                  <div className="text-xs text-zinc-500 break-all">{selected.sourcePath}</div>
-                )}
-              </>
-            )}
-
-            <div>
-              <div className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Neighbors</div>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {[...(adjacency.get(selected.id) ?? [])].slice(0, 20).map((id) => {
-                  const n = graph?.nodes.find((x) => x.id === id);
-                  if (!n) return null;
-                  const topic = isTopic(n);
-                  return (
-                    <button
-                      type="button"
-                      key={id}
-                      onClick={() => setSelectedId(id)}
-                      className={`rounded-full border px-2 py-1 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-900 ${
-                        topic
-                          ? 'border-emerald-200 text-emerald-700 dark:border-emerald-900/50 dark:text-emerald-200'
-                          : 'border-zinc-200 text-zinc-700 dark:border-zinc-800 dark:text-zinc-200'
-                      }`}
-                    >
-                      {n.title.length > 22 ? `${n.title.slice(0, 22)}…` : n.title}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+        <div className="mb-4">
+          <div className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Add Historian Event</div>
+          <div className="mt-1 text-xs text-zinc-500">
+            Writes to Neo4j via GraphQL. Admin key stays server-side. You must enter the ingest key.
           </div>
-        )}
+
+          <div className="mt-3 grid gap-2">
+            <input
+              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
+              placeholder="created (YYYY-MM-DD)"
+              value={newCreated}
+              onChange={(e) => setNewCreated(e.target.value)}
+            />
+            <input
+              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
+              placeholder="title"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+            />
+            <input
+              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
+              placeholder="theme (optional)"
+              value={newTheme}
+              onChange={(e) => setNewTheme(e.target.value)}
+            />
+            <input
+              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
+              placeholder="source (optional)"
+              value={newSource}
+              onChange={(e) => setNewSource(e.target.value)}
+            />
+            <input
+              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
+              placeholder="sourcePath (optional)"
+              value={newSourcePath}
+              onChange={(e) => setNewSourcePath(e.target.value)}
+            />
+            <textarea
+              className="h-40 w-full resize-none rounded-md border border-zinc-200 bg-transparent px-2 py-2 text-sm dark:border-zinc-800"
+              placeholder="content (markdown)"
+              value={newContent}
+              onChange={(e) => setNewContent(e.target.value)}
+            />
+
+            <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
+              <input
+                type="checkbox"
+                checked={linkFromSelected}
+                onChange={(e) => setLinkFromSelected(e.target.checked)}
+              />
+              Link from selected event as previous (creates NEXT edge)
+            </label>
+
+            <button
+              type="button"
+              className="rounded-md bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+              disabled={!ingestKey || !newCreated || !newTitle || !newContent}
+              onClick={() =>
+                ingest({
+                  event: {
+                    created: newCreated,
+                    title: newTitle,
+                    theme: newTheme || null,
+                    source: newSource || null,
+                    sourcePath: newSourcePath || '',
+                    content: newContent,
+                  },
+                  previousEventId: linkFromSelected && selected && !isTopic(selected) ? selected.id : null,
+                })
+              }
+            >
+              Save Event
+            </button>
+          </div>
+        </div>
+
+        <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+          <div className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">Details</div>
+
+          {!selected && <div className="text-sm text-zinc-500">Select a node.</div>}
+
+          {selected && (
+            <div className="space-y-3">
+              <div>
+                <div className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{labelFor(selected)}</div>
+                {selected.theme && (
+                  <div className="mt-1 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
+                    {selected.theme}
+                  </div>
+                )}
+                {selected.source && <div className="mt-1 text-xs text-zinc-500">source: {selected.source}</div>}
+              </div>
+
+              {!isTopic(selected) && (
+                <>
+                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm leading-6 text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-200">
+                    {selected.content.trim().slice(0, 500)}
+                    {selected.content.trim().length > 500 ? '…' : ''}
+                  </div>
+                  {selected.sourcePath && <div className="text-xs text-zinc-500 break-all">{selected.sourcePath}</div>}
+                </>
+              )}
+
+              <div>
+                <div className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Neighbors</div>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {[...(adjacency.get(selected.id) ?? [])].slice(0, 20).map((id) => {
+                    const n = graph?.nodes.find((x) => x.id === id);
+                    if (!n) return null;
+                    const topic = isTopic(n);
+                    return (
+                      <button
+                        type="button"
+                        key={id}
+                        onClick={() => setSelectedId(id)}
+                        className={`rounded-full border px-2 py-1 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-900 ${
+                          topic
+                            ? 'border-emerald-200 text-emerald-700 dark:border-emerald-900/50 dark:text-emerald-200'
+                            : 'border-zinc-200 text-zinc-700 dark:border-zinc-800 dark:text-zinc-200'
+                        }`}
+                      >
+                        {n.title.length > 22 ? `${n.title.slice(0, 22)}…` : n.title}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </aside>
     </div>
   );

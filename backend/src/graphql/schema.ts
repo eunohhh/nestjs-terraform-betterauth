@@ -1,6 +1,6 @@
 import { createSchema } from 'graphql-yoga';
 import type { GraphEdge, HistorianEvent } from './historian-graph';
-import { buildTimelineEdges, loadHistorianEvents } from './historian-graph';
+import { loadHistorianEvents } from './historian-graph';
 import { isNeo4jEnabled, readHistorianGraph, upsertHistorianGraph } from './historian-neo4j';
 
 export type Graph = { nodes: HistorianEvent[]; edges: GraphEdge[] };
@@ -33,6 +33,17 @@ export const schema = createSchema({
       nodes: Int!
       edges: Int!
       mode: String!
+      id: ID
+    }
+
+    input HistorianEventInput {
+      id: ID
+      created: String!
+      title: String!
+      content: String!
+      sourcePath: String!
+      theme: String
+      source: String
     }
 
     type Query {
@@ -42,7 +53,7 @@ export const schema = createSchema({
     }
 
     type Mutation {
-      ingestHistorian(limit: Int = 200): IngestResult!
+      ingestHistorian(input: HistorianEventInput!, previousEventId: ID): IngestResult!
     }
   `,
   resolvers: {
@@ -67,15 +78,15 @@ export const schema = createSchema({
         if (isNeo4jEnabled()) {
           return readHistorianGraph(args.limit ?? 50);
         }
-        const nodes = await loadHistorianEvents({ limit: args.limit ?? 50 });
-        const edges = buildTimelineEdges(nodes);
-        return { nodes, edges };
+        // File-mode graph has been removed from the server path (ECS won't have the files).
+        // Use the local ingest script to populate Neo4j, then query from Neo4j.
+        throw new Error('Neo4j is not configured');
       },
     },
     Mutation: {
       ingestHistorian: async (
         _parent: unknown,
-        args: { limit?: number },
+        args: { input: HistorianEvent; previousEventId?: string | null },
         ctx: { adminKey?: string | undefined },
       ) => {
         const expected = process.env.GRAPHQL_ADMIN_KEY;
@@ -86,15 +97,30 @@ export const schema = createSchema({
           throw new Error('Unauthorized');
         }
 
-        const nodes = await loadHistorianEvents({ limit: args.limit ?? 200 });
-        const edges = buildTimelineEdges(nodes);
-
         if (!isNeo4jEnabled()) {
-          return { ok: true, nodes: nodes.length, edges: edges.length, mode: 'file-only' };
+          throw new Error('Neo4j is not configured');
         }
 
-        const result = await upsertHistorianGraph({ events: nodes, edges });
-        return { ok: true, nodes: result.nodes, edges: result.edges, mode: 'neo4j' };
+        const input = args.input;
+        const id = input.id && input.id.length > 0 ? input.id : `historian:${input.created}:${input.title}`;
+
+        const event: HistorianEvent = {
+          id,
+          created: input.created,
+          title: input.title,
+          content: input.content,
+          sourcePath: input.sourcePath,
+          theme: input.theme ?? null,
+          source: input.source ?? null,
+        };
+
+        const edges: GraphEdge[] = [];
+        if (args.previousEventId && args.previousEventId.length > 0) {
+          edges.push({ from: args.previousEventId, to: id, type: 'NEXT' });
+        }
+
+        const result = await upsertHistorianGraph({ events: [event], edges });
+        return { ok: true, nodes: result.nodes, edges: result.edges, mode: 'neo4j', id };
       },
     },
   },
