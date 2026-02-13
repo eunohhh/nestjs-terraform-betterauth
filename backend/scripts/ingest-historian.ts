@@ -1,5 +1,7 @@
+import 'dotenv/config';
 import { loadHistorianEvents, buildTimelineEdges } from '../src/graphql/historian-graph';
 import { upsertHistorianGraph } from '../src/graphql/historian-neo4j';
+import { closeNeo4jDriver } from '../src/graphql/neo4j';
 
 const DEFAULT_HISTORIAN_DIR = '/home/eunoh/문서/screenxyz/historian';
 
@@ -86,8 +88,10 @@ async function main() {
   console.log(`[ingest] upserted nodes=${result.nodes} edges=${result.edges}`);
 }
 
-main().catch((err) => {
-  // eslint-disable-next-line no-console
-  console.error('[ingest] failed', err);
-  process.exit(1);
-});
+main()
+  .catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error('[ingest] failed', err);
+    process.exitCode = 1;
+  })
+  .finally(() => closeNeo4jDriver());
