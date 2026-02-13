@@ -73,7 +73,19 @@ export const schema = createSchema({
       },
     },
     Mutation: {
-      ingestHistorian: async (_parent: unknown, args: { limit?: number }) => {
+      ingestHistorian: async (
+        _parent: unknown,
+        args: { limit?: number },
+        ctx: { adminKey?: string | undefined },
+      ) => {
+        const expected = process.env.GRAPHQL_ADMIN_KEY;
+        if (!expected) {
+          throw new Error('GRAPHQL_ADMIN_KEY is not set');
+        }
+        if (!ctx.adminKey || ctx.adminKey !== expected) {
+          throw new Error('Unauthorized');
+        }
+
         const nodes = await loadHistorianEvents({ limit: args.limit ?? 200 });
         const edges = buildTimelineEdges(nodes);
 

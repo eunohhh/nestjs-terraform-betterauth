@@ -39,6 +39,7 @@ type SimLink = {
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
+const ADMIN_KEY = process.env.NEXT_PUBLIC_GRAPHQL_ADMIN_KEY;
 
 function isTopic(n: HistorianEventNode) {
   return n.id.startsWith('topic:');
@@ -108,7 +109,10 @@ export default function GraphClient() {
     try {
       const res = await fetch(`${API_BASE}/graphql`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(ADMIN_KEY ? { 'X-Admin-Key': ADMIN_KEY } : {}),
+        },
         body: JSON.stringify({
           query: `mutation ($limit: Int!) {
             ingestHistorian(limit: $limit) { ok mode nodes edges }
