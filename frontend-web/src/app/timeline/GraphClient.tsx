@@ -39,7 +39,6 @@ type SimLink = {
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
-const ADMIN_KEY = process.env.NEXT_PUBLIC_GRAPHQL_ADMIN_KEY;
 
 function isTopic(n: HistorianEventNode) {
   return n.id.startsWith('topic:');
@@ -107,22 +106,14 @@ export default function GraphClient() {
   const ingest = async () => {
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/graphql`, {
+      const res = await fetch(`/api/ingest`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(ADMIN_KEY ? { 'X-Admin-Key': ADMIN_KEY } : {}),
-        },
-        body: JSON.stringify({
-          query: `mutation ($limit: Int!) {
-            ingestHistorian(limit: $limit) { ok mode nodes edges }
-          }`,
-          variables: { limit: 200 },
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 200 }),
       });
       const json = (await res.json()) as any;
-      if (!res.ok || json.errors) {
-        throw new Error(json.errors?.[0]?.message ?? `GraphQL error (${res.status})`);
+      if (!res.ok) {
+        throw new Error(json?.error ?? `Ingest failed (${res.status})`);
       }
       await fetchGraph();
     } catch (e) {
