@@ -1,4 +1,4 @@
-import type { Driver } from 'neo4j-driver';
+import neo4j, { type Driver } from 'neo4j-driver';
 import { getNeo4jDriver, getNeo4jConfigFromEnv } from './neo4j';
 import type { GraphEdge, HistorianEvent } from './historian-graph';
 
@@ -95,6 +95,7 @@ export async function upsertHistorianGraph(input: {
 }
 
 export async function readHistorianGraph(limit: number): Promise<{ nodes: HistorianEvent[]; edges: GraphEdge[] }> {
+  const safeLimit = Math.max(0, Math.floor(limit));
   const driver = getNeo4jDriver();
   if (!driver) {
     throw new Error('Neo4j is not configured');
@@ -106,7 +107,7 @@ export async function readHistorianGraph(limit: number): Promise<{ nodes: Histor
        RETURN e
        ORDER BY e.created DESC
        LIMIT $limit`,
-      { limit },
+      { limit: neo4j.int(safeLimit) },
     );
 
     const nodes: HistorianEvent[] = nodesRes.records.map((r: any) => {
