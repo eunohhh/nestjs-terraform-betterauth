@@ -54,6 +54,7 @@ export default function GraphClient() {
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [limit, setLimit] = useState(60);
+  const [ingestKey, setIngestKey] = useState('');
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [size, setSize] = useState({ w: 900, h: 560 });
@@ -108,7 +109,10 @@ export default function GraphClient() {
     try {
       const res = await fetch(`/api/ingest`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Ingest-Key': ingestKey,
+        },
         body: JSON.stringify({ limit: 200 }),
       });
       const json = (await res.json()) as any;
@@ -246,9 +250,17 @@ export default function GraphClient() {
             >
               Refresh
             </button>
+            <input
+              className="w-40 rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
+              placeholder="Ingest key"
+              value={ingestKey}
+              onChange={(e) => setIngestKey(e.target.value)}
+            />
             <button
-              className="rounded-md bg-zinc-900 px-3 py-1 text-sm text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+              className="rounded-md bg-zinc-900 px-3 py-1 text-sm text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
               onClick={ingest}
+              disabled={!ingestKey}
+              title={!ingestKey ? 'Enter ingest key to enable' : 'Ingest historian into Neo4j'}
             >
               Ingest → Neo4j
             </button>

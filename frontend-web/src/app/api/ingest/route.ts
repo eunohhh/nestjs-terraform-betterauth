@@ -2,11 +2,20 @@ import { NextResponse } from 'next/server';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 const ADMIN_KEY = process.env.GRAPHQL_ADMIN_KEY;
+const INGEST_KEY = process.env.INGEST_KEY;
 
 export async function POST(req: Request) {
   try {
     if (!ADMIN_KEY) {
       return NextResponse.json({ error: 'GRAPHQL_ADMIN_KEY is not set' }, { status: 500 });
+    }
+    if (!INGEST_KEY) {
+      return NextResponse.json({ error: 'INGEST_KEY is not set' }, { status: 500 });
+    }
+
+    const providedKey = req.headers.get('x-ingest-key') ?? '';
+    if (providedKey !== INGEST_KEY) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = (await req.json().catch(() => ({}))) as { limit?: number };
@@ -22,7 +31,6 @@ export async function POST(req: Request) {
         query: `mutation ($limit: Int!) { ingestHistorian(limit: $limit) { ok mode nodes edges } }`,
         variables: { limit },
       }),
-      // avoid caching
       cache: 'no-store',
     });
 

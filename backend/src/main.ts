@@ -18,8 +18,22 @@ async function bootstrap() {
   // ALB 등 프록시 뒤에서 클라이언트 IP(X-Forwarded-For)를 올바르게 인식
   app.set('trust proxy', 1);
 
+  const allowedOrigins = (process.env.FRONTEND_URL ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => s.replace(/^<|>$/g, ''));
+
   app.enableCors({
-    origin: [process.env.FRONTEND_URL ?? ''],
+    origin: (origin, callback) => {
+      // allow server-to-server / curl / same-origin where Origin header may be missing
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      const normalized = origin.trim();
+      callback(null, allowedOrigins.includes(normalized));
+    },
     credentials: true,
   });
 
