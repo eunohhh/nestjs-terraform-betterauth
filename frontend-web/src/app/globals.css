@@ -24,3 +24,77 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Code highlighting (rehype-highlight / highlight.js) */
+@import "highlight.js/styles/github-dark.css";
+
+/* Lightweight markdown styling */
+.markdown {
+  line-height: 1.75;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  font-weight: 700;
+  margin-top: 1.2em;
+  margin-bottom: 0.6em;
+}
+
+.markdown p {
+  margin: 0.75em 0;
+}
+
+.markdown ul,
+.markdown ol {
+  padding-left: 1.25em;
+  margin: 0.75em 0;
+}
+
+.markdown li {
+  margin: 0.25em 0;
+}
+
+.markdown a {
+  text-decoration: underline;
+}
+
+.markdown pre {
+  padding: 0.9em 1em;
+  border-radius: 0.75em;
+  overflow-x: auto;
+}
+
+.markdown code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.95em;
+}
+
+.markdown :not(pre) > code {
+  padding: 0.15em 0.35em;
+  border-radius: 0.4em;
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.markdown blockquote {
+  border-left: 3px solid color-mix(in srgb, var(--foreground) 25%, transparent);
+  padding-left: 0.9em;
+  margin: 1em 0;
+  color: color-mix(in srgb, var(--foreground) 75%, transparent);
+}
+
+.markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+.markdown th,
+.markdown td {
+  border: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+  padding: 0.5em 0.6em;
+}
+
+.markdown thead th {
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+}

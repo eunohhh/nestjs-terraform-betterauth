@@ -1,6 +1,9 @@
 'use client';
 
 import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation } from 'd3-force';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type HistorianEventNode = {
@@ -460,9 +463,13 @@ export default function GraphClient() {
 
               {!isTopic(selected) && (
                 <>
-                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm leading-6 text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-200">
-                    {selected.content.trim().slice(0, 500)}
-                    {selected.content.trim().length > 500 ? '…' : ''}
+                  <div className="markdown rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm leading-6 text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-200">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeHighlight]}
+                    >
+                      {selected.content}
+                    </ReactMarkdown>
                   </div>
                   {selected.sourcePath && <div className="text-xs text-zinc-500 break-all">{selected.sourcePath}</div>}
                 </>
