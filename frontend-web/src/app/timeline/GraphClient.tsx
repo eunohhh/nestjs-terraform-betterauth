@@ -1,9 +1,11 @@
 'use client';
 
 import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation } from 'd3-force';
+import { select } from 'd3-selection';
+import { zoom, zoomIdentity, type ZoomTransform } from 'd3-zoom';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import remarkGfm from 'remark-gfm';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type HistorianEventNode = {
@@ -87,7 +89,9 @@ export default function GraphClient() {
   const [linkFromSelected, setLinkFromSelected] = useState(true);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const viewportRef = useRef<SVGGElement | null>(null);
   const [size, setSize] = useState({ w: 900, h: 560 });
+  const [transform, setTransform] = useState<ZoomTransform>(() => zoomIdentity);
 
   useEffect(() => {
     const el = svgRef.current;
@@ -104,6 +108,31 @@ export default function GraphClient() {
 
     ro.observe(el);
     return () => ro.disconnect();
+  }, []);
+
+  // Zoom / pan (wheel on desktop, pinch on mobile)
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+
+    let raf = 0;
+    const z = zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.2, 6])
+      .on('zoom', (event) => {
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => setTransform(event.transform));
+      });
+
+    const s = select(el);
+    s.call(z as any);
+
+    // Prevent the page from scrolling on touch while interacting with the graph.
+    s.style('touch-action', 'none');
+
+    return () => {
+      cancelAnimationFrame(raf);
+      s.on('.zoom', null);
+    };
   }, []);
 
   const fetchGraph = useCallback(async () => {
@@ -319,8 +348,12 @@ export default function GraphClient() {
             role="img"
             aria-label="Historian graph"
           >
-            {/* edges */}
-            <g opacity={0.65}>
+            <g
+              ref={viewportRef}
+              transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}
+            >
+              {/* edges */}
+              <g opacity={0.65}>
               {simLinks.map((l, idx) => {
                 const s =
                   typeof l.source === 'string'
@@ -346,10 +379,10 @@ export default function GraphClient() {
                   />
                 );
               })}
-            </g>
+              </g>
 
-            {/* nodes */}
-            <g>
+              {/* nodes */}
+              <g>
               {nodesToRender.map((n) => {
                 const x = n.x ?? 0;
                 const y = n.y ?? 0;
@@ -386,6 +419,7 @@ export default function GraphClient() {
                   </g>
                 );
               })}
+              </g>
             </g>
           </svg>
         </div>
