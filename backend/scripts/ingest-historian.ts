@@ -108,6 +108,21 @@ async function main() {
 
   // eslint-disable-next-line no-console
   console.log(`[ingest] parsed events=${events.length} edges=${edges.length}`);
+  // eslint-disable-next-line no-console
+  console.log(
+    '[ingest] sample meta',
+    events[0]
+      ? {
+          created: events[0].created,
+          title: events[0].title,
+          theme: events[0].theme,
+          kind: events[0].kind,
+          era: events[0].era,
+          tags: events[0].tags,
+          people: events[0].people,
+        }
+      : null,
+  );
 
   if (args.dryRun) {
     // eslint-disable-next-line no-console

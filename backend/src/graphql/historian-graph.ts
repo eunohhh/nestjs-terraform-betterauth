@@ -9,6 +9,10 @@ export type HistorianEvent = {
   sourcePath: string;
   theme?: string | null;
   source?: string | null;
+  kind?: string | null;
+  era?: string | null;
+  tags?: string[];
+  people?: string[];
 };
 
 export type GraphEdge = {
@@ -26,7 +30,23 @@ const parseHistorianFilename = (filename: string) => {
   return { created: match[1], title: match[2] };
 };
 
-const parseFrontmatter = (markdown: string): { attrs: Record<string, string>; body: string } => {
+type FrontmatterValue = string | string[];
+
+const parseInlineList = (value: string): string[] | null => {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) return null;
+  const inner = trimmed.slice(1, -1).trim();
+  if (inner.length === 0) return [];
+  return inner
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => s.replace(/^"|"$/g, '').replace(/^'|'$/g, ''));
+};
+
+const parseFrontmatter = (
+  markdown: string,
+): { attrs: Record<string, FrontmatterValue>; body: string } => {
   if (!markdown.startsWith('---')) return { attrs: {}, body: markdown };
   const end = markdown.indexOf('\n---', 3);
   if (end === -1) return { attrs: {}, body: markdown };
@@ -34,15 +54,22 @@ const parseFrontmatter = (markdown: string): { attrs: Record<string, string>; bo
   const raw = markdown.slice(3, end).trim();
   const body = markdown.slice(end + '\n---'.length).replace(/^\s+/, '');
 
-  // Minimal YAML-ish parser: key: value (supports quoted strings)
-  const attrs: Record<string, string> = {};
+  // Minimal YAML-ish parser: key: value
+  // Supports quoted strings and inline lists: tags: [a, b]
+  const attrs: Record<string, FrontmatterValue> = {};
   for (const line of raw.split('\n')) {
-    const idx = line.indexOf(':');
+    const cleaned = line.trim();
+    if (cleaned.length === 0) continue;
+
+    const idx = cleaned.indexOf(':');
     if (idx === -1) continue;
-    const key = line.slice(0, idx).trim();
-    let value = line.slice(idx + 1).trim();
+
+    const key = cleaned.slice(0, idx).trim();
+    let value = cleaned.slice(idx + 1).trim();
     value = value.replace(/^"|"$/g, '').replace(/^'|'$/g, '');
-    if (key) attrs[key] = value;
+
+    const list = parseInlineList(value);
+    attrs[key] = list ?? value;
   }
 
   return { attrs, body };
@@ -88,14 +115,30 @@ export async function loadHistorianEvents(opts?: {
       const sourcePath = path.join(historianDir, filename);
       const raw = await readFile(sourcePath, 'utf-8');
       const { attrs, body } = parseFrontmatter(raw);
+      const fmTitle = typeof attrs.title === 'string' ? attrs.title : undefined;
+      const fmCreated = typeof attrs.created === 'string' ? attrs.created : undefined;
+      const fmTags = Array.isArray(attrs.tags) ? attrs.tags : [];
+      const fmPeople = Array.isArray(attrs.people) ? attrs.people : [];
+      const fmKind = typeof attrs.kind === 'string' ? attrs.kind : undefined;
+      const fmEra = typeof attrs.era === 'string' ? attrs.era : undefined;
+      const fmTheme = typeof attrs.theme === 'string' ? attrs.theme : undefined;
+      const fmSource = typeof attrs.source === 'string' ? attrs.source : undefined;
+
+      const resolvedCreated = fmCreated ?? created;
+      const resolvedTitle = fmTitle ?? title;
+
       return {
-        id: `historian:${created}:${title}`,
-        created,
-        title,
+        id: `historian:${resolvedCreated}:${resolvedTitle}`,
+        created: resolvedCreated,
+        title: resolvedTitle,
         content: body,
         sourcePath,
-        theme: attrs.theme ?? null,
-        source: attrs.source ?? null,
+        theme: fmTheme ?? null,
+        source: fmSource ?? null,
+        kind: fmKind ?? null,
+        era: fmEra ?? null,
+        tags: fmTags,
+        people: fmPeople,
       } satisfies HistorianEvent;
     }),
   );

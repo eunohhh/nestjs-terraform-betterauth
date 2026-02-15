@@ -4,6 +4,8 @@ import type { GraphEdge, HistorianEvent } from './historian-graph';
 
 const EVENT_LABEL = 'HistorianEvent';
 const TOPIC_LABEL = 'Topic';
+const TAG_LABEL = 'Tag';
+const PERSON_LABEL = 'Person';
 
 function getDbName(): string | undefined {
   return getNeo4jConfigFromEnv()?.database;
@@ -34,6 +36,12 @@ export async function ensureConstraints(): Promise<void> {
     await session.run(
       `CREATE CONSTRAINT topic_name IF NOT EXISTS FOR (t:${TOPIC_LABEL}) REQUIRE t.name IS UNIQUE`,
     );
+    await session.run(
+      `CREATE CONSTRAINT tag_name IF NOT EXISTS FOR (t:${TAG_LABEL}) REQUIRE t.name IS UNIQUE`,
+    );
+    await session.run(
+      `CREATE CONSTRAINT person_name IF NOT EXISTS FOR (p:${PERSON_LABEL}) REQUIRE p.name IS UNIQUE`,
+    );
   });
 }
 
@@ -60,7 +68,11 @@ export async function upsertHistorianGraph(input: {
            e.content = ev.content,
            e.sourcePath = ev.sourcePath,
            e.theme = ev.theme,
-           e.source = ev.source`,
+           e.source = ev.source,
+           e.kind = ev.kind,
+           e.era = ev.era,
+           e.tags = ev.tags,
+           e.people = ev.people`,
       { events },
     );
 
@@ -72,6 +84,30 @@ export async function upsertHistorianGraph(input: {
        WITH ev, t
        MATCH (e:${EVENT_LABEL} { id: ev.id })
        MERGE (e)-[:THEME]->(t)`,
+      { events },
+    );
+
+    // Tag nodes
+    await session.run(
+      `UNWIND $events AS ev
+       MATCH (e:${EVENT_LABEL} { id: ev.id })
+       WITH ev, e
+       UNWIND (CASE WHEN ev.tags IS NULL THEN [] ELSE ev.tags END) AS tag
+       WITH e, tag WHERE tag IS NOT NULL AND tag <> ''
+       MERGE (t:${TAG_LABEL} { name: tag })
+       MERGE (e)-[:TAGGED]->(t)`,
+      { events },
+    );
+
+    // People nodes
+    await session.run(
+      `UNWIND $events AS ev
+       MATCH (e:${EVENT_LABEL} { id: ev.id })
+       WITH ev, e
+       UNWIND (CASE WHEN ev.people IS NULL THEN [] ELSE ev.people END) AS person
+       WITH e, person WHERE person IS NOT NULL AND person <> ''
+       MERGE (p:${PERSON_LABEL} { name: person })
+       MERGE (e)-[:MENTIONS]->(p)`,
       { events },
     );
 
@@ -120,6 +156,10 @@ export async function readHistorianGraph(limit: number): Promise<{ nodes: Histor
         sourcePath: e.sourcePath,
         theme: e.theme ?? null,
         source: e.source ?? null,
+        kind: e.kind ?? null,
+        era: e.era ?? null,
+        tags: e.tags ?? [],
+        people: e.people ?? [],
       };
     });
 
@@ -151,25 +191,71 @@ export async function readHistorianGraph(limit: number): Promise<{ nodes: Histor
       type: 'THEME',
     }));
 
-    // Include Topic nodes as pseudo nodes so the UI can render them.
-    const topics = new Map<string, HistorianEvent>();
-    for (const e of themeEdges) {
-      if (e.type !== 'THEME') continue;
-      const name = e.to.replace(/^topic:/, '');
-      const id = e.to;
-      if (!topics.has(id)) {
-        topics.set(id, {
+    // TAG edges
+    const tagEdgesRes = await session.run(
+      `MATCH (e:${EVENT_LABEL})-[:TAGGED]->(t:${TAG_LABEL})
+       WHERE e.id IN $ids
+       RETURN e.id AS from, t.name AS to`,
+      { ids },
+    );
+
+    const tagEdges: GraphEdge[] = tagEdgesRes.records.map((r: any) => ({
+      from: r.get('from'),
+      to: `tag:${r.get('to')}`,
+      type: 'TAGGED',
+    }));
+
+    // People edges
+    const peopleEdgesRes = await session.run(
+      `MATCH (e:${EVENT_LABEL})-[:MENTIONS]->(p:${PERSON_LABEL})
+       WHERE e.id IN $ids
+       RETURN e.id AS from, p.name AS to`,
+      { ids },
+    );
+
+    const peopleEdges: GraphEdge[] = peopleEdgesRes.records.map((r: any) => ({
+      from: r.get('from'),
+      to: `person:${r.get('to')}`,
+      type: 'MENTIONS',
+    }));
+
+    // Include Topic/Tag/Person nodes as pseudo nodes so the UI can render them.
+    const extra = new Map<string, HistorianEvent>();
+
+    const ensurePseudo = (id: string, title: string) => {
+      if (!extra.has(id)) {
+        extra.set(id, {
           id,
           created: '0000-00-00',
-          title: name,
+          title,
           content: '',
           sourcePath: '',
           theme: null,
           source: null,
+          kind: null,
+          era: null,
+          tags: [],
+          people: [],
         });
       }
+    };
+
+    for (const e of themeEdges) {
+      if (e.type !== 'THEME') continue;
+      ensurePseudo(e.to, e.to.replace(/^topic:/, ''));
+    }
+    for (const e of tagEdges) {
+      if (e.type !== 'TAGGED') continue;
+      ensurePseudo(e.to, e.to.replace(/^tag:/, ''));
+    }
+    for (const e of peopleEdges) {
+      if (e.type !== 'MENTIONS') continue;
+      ensurePseudo(e.to, e.to.replace(/^person:/, ''));
     }
 
-    return { nodes: [...nodes, ...topics.values()], edges: [...edges, ...themeEdges] };
+    return {
+      nodes: [...nodes, ...extra.values()],
+      edges: [...edges, ...themeEdges, ...tagEdges, ...peopleEdges],
+    };
   });
 }

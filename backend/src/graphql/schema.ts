@@ -15,6 +15,10 @@ export const schema = createSchema({
       sourcePath: String!
       theme: String
       source: String
+      kind: String
+      era: String
+      tags: [String!]!
+      people: [String!]!
     }
 
     type GraphEdge {
@@ -44,6 +48,10 @@ export const schema = createSchema({
       sourcePath: String!
       theme: String
       source: String
+      kind: String
+      era: String
+      tags: [String!]
+      people: [String!]
     }
 
     type Query {
@@ -112,6 +120,10 @@ export const schema = createSchema({
           sourcePath: input.sourcePath,
           theme: input.theme ?? null,
           source: input.source ?? null,
+          kind: (input as any).kind ?? null,
+          era: (input as any).era ?? null,
+          tags: Array.isArray((input as any).tags) ? (input as any).tags : [],
+          people: Array.isArray((input as any).people) ? (input as any).people : [],
         };
 
         const edges: GraphEdge[] = [];

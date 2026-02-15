@@ -27,6 +27,10 @@ export async function POST(req: Request) {
         sourcePath: string;
         theme?: string | null;
         source?: string | null;
+        kind?: string | null;
+        era?: string | null;
+        tags?: string[] | null;
+        people?: string[] | null;
       };
       previousEventId?: string | null;
     };

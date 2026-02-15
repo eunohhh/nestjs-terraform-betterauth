@@ -14,6 +14,10 @@ type HistorianEventNode = {
   sourcePath: string;
   theme?: string | null;
   source?: string | null;
+  kind?: string | null;
+  era?: string | null;
+  tags?: string[];
+  people?: string[];
 };
 
 type GraphEdge = {
@@ -43,12 +47,23 @@ type SimLink = {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
+function nodeType(n: HistorianEventNode): 'topic' | 'tag' | 'person' | 'event' {
+  if (n.id.startsWith('topic:')) return 'topic';
+  if (n.id.startsWith('tag:')) return 'tag';
+  if (n.id.startsWith('person:')) return 'person';
+  return 'event';
+}
+
 function isTopic(n: HistorianEventNode) {
-  return n.id.startsWith('topic:');
+  return nodeType(n) === 'topic';
+}
+
+function isExtraNode(n: HistorianEventNode) {
+  return nodeType(n) !== 'event';
 }
 
 function labelFor(n: HistorianEventNode) {
-  if (isTopic(n)) return n.title;
+  if (isExtraNode(n)) return n.title;
   return `${n.created} · ${n.title}`;
 }
 
@@ -62,6 +77,10 @@ export default function GraphClient() {
   const [newCreated, setNewCreated] = useState('');
   const [newTitle, setNewTitle] = useState('');
   const [newTheme, setNewTheme] = useState('');
+  const [newKind, setNewKind] = useState('concept');
+  const [newEra, setNewEra] = useState('');
+  const [newTags, setNewTags] = useState('');
+  const [newPeople, setNewPeople] = useState('');
   const [newSource, setNewSource] = useState('Historian by OpenClaw');
   const [newSourcePath, setNewSourcePath] = useState('');
   const [newContent, setNewContent] = useState('');
@@ -96,7 +115,7 @@ export default function GraphClient() {
         body: JSON.stringify({
           query: `query ($limit: Int!) {
             historianGraph(limit: $limit) {
-              nodes { id created title content sourcePath theme source }
+              nodes { id created title content sourcePath theme source kind era tags people }
               edges { from to type }
             }
           }`,
@@ -190,8 +209,12 @@ export default function GraphClient() {
 
     const linkForce = forceLink<SimNode, any>(linksResolved as any)
       .id((d: any) => d.id)
-      .distance((d: any) => (d.type === 'THEME' ? 80 : 40))
-      .strength((d: any) => (d.type === 'THEME' ? 0.15 : 0.6));
+      .distance((d: any) =>
+        d.type === 'THEME' ? 80 : d.type === 'TAGGED' || d.type === 'MENTIONS' ? 70 : 40,
+      )
+      .strength((d: any) =>
+        d.type === 'THEME' ? 0.15 : d.type === 'TAGGED' || d.type === 'MENTIONS' ? 0.18 : 0.6,
+      );
 
     const sim = forceSimulation(simNodes)
       .force('charge', forceManyBody().strength(-160))
@@ -200,7 +223,7 @@ export default function GraphClient() {
       .force(
         'collide',
         forceCollide<SimNode>()
-          .radius((d) => (isTopic(d) ? 18 : 14))
+          .radius((d) => (isExtraNode(d) ? 18 : 14))
           .strength(0.9),
       );
 
@@ -330,11 +353,18 @@ export default function GraphClient() {
               {nodesToRender.map((n) => {
                 const x = n.x ?? 0;
                 const y = n.y ?? 0;
-                const topic = isTopic(n);
+                const t = nodeType(n);
                 const hl = selectedId ? highlighted.has(n.id) : true;
 
-                const r = topic ? 14 : 10;
-                const fill = topic ? '#10b981' : '#2563eb';
+                const r = t === 'event' ? 10 : 12;
+                const fill =
+                  t === 'topic'
+                    ? '#10b981'
+                    : t === 'tag'
+                      ? '#a855f7'
+                      : t === 'person'
+                        ? '#f97316'
+                        : '#2563eb';
                 const stroke = selectedId === n.id ? '#f59e0b' : '#0b1220';
 
                 return (
@@ -350,7 +380,7 @@ export default function GraphClient() {
                       stroke={stroke}
                       strokeWidth={selectedId === n.id ? 3 : 1.2}
                     />
-                    <text x={r + 6} y={4} fontSize={11} fill={topic ? '#065f46' : '#1f2937'}>
+                    <text x={r + 6} y={4} fontSize={11} fill={t === 'topic' ? '#065f46' : '#1f2937'}>
                       {n.title.length > 40 ? `${n.title.slice(0, 40)}…` : n.title}
                     </text>
                   </g>
@@ -395,6 +425,30 @@ export default function GraphClient() {
             />
             <input
               className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
+              placeholder="kind (optional, e.g. concept)"
+              value={newKind}
+              onChange={(e) => setNewKind(e.target.value)}
+            />
+            <input
+              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
+              placeholder="era (optional, e.g. 1990s–2000s)"
+              value={newEra}
+              onChange={(e) => setNewEra(e.target.value)}
+            />
+            <input
+              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
+              placeholder="tags (comma separated, optional)"
+              value={newTags}
+              onChange={(e) => setNewTags(e.target.value)}
+            />
+            <input
+              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
+              placeholder="people (comma separated, optional)"
+              value={newPeople}
+              onChange={(e) => setNewPeople(e.target.value)}
+            />
+            <input
+              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
               placeholder="source (optional)"
               value={newSource}
               onChange={(e) => setNewSource(e.target.value)}
@@ -431,6 +485,16 @@ export default function GraphClient() {
                     created: newCreated,
                     title: newTitle,
                     theme: newTheme || null,
+                    kind: newKind || null,
+                    era: newEra || null,
+                    tags: newTags
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                    people: newPeople
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean),
                     source: newSource || null,
                     sourcePath: newSourcePath || '',
                     content: newContent,
@@ -459,6 +523,26 @@ export default function GraphClient() {
                   </div>
                 )}
                 {selected.source && <div className="mt-1 text-xs text-zinc-500">source: {selected.source}</div>}
+                {selected.kind && <div className="mt-1 text-xs text-zinc-500">kind: {selected.kind}</div>}
+                {selected.era && <div className="mt-1 text-xs text-zinc-500">era: {selected.era}</div>}
+                {selected.tags && selected.tags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {selected.tags.slice(0, 12).map((t) => (
+                      <span key={t} className="rounded-full bg-purple-50 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-950/40 dark:text-purple-200">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {selected.people && selected.people.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {selected.people.slice(0, 12).map((p) => (
+                      <span key={p} className="rounded-full bg-orange-50 px-2 py-0.5 text-xs text-orange-700 dark:bg-orange-950/40 dark:text-orange-200">
+                        {p}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {!isTopic(selected) && (
