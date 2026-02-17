@@ -90,6 +90,15 @@ export default function GraphClient() {
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const viewportRef = useRef<SVGGElement | null>(null);
+  const zoomRef = useRef<ReturnType<typeof zoom<SVGSVGElement, unknown>> | null>(null);
+  const zoomSelectionRef = useRef<any>(null);
+  const lastTapRef = useRef<{ t: number; x: number; y: number } | null>(null);
+
+  const [showEvents, setShowEvents] = useState(true);
+  const [showTopics, setShowTopics] = useState(true);
+  const [showTags, setShowTags] = useState(true);
+  const [showPeople, setShowPeople] = useState(true);
+
   const [size, setSize] = useState({ w: 900, h: 560 });
   const [transform, setTransform] = useState<ZoomTransform>(() => zoomIdentity);
 
@@ -124,7 +133,13 @@ export default function GraphClient() {
       });
 
     const s = select(el);
+    // disable default dblclick zoom (we'll implement our own for dblclick + double-tap)
+    s.on('dblclick.zoom', null);
+
     s.call(z as any);
+
+    zoomRef.current = z;
+    zoomSelectionRef.current = s;
 
     // Prevent the page from scrolling on touch while interacting with the graph.
     s.style('touch-action', 'none');
@@ -132,8 +147,80 @@ export default function GraphClient() {
     return () => {
       cancelAnimationFrame(raf);
       s.on('.zoom', null);
+      zoomRef.current = null;
+      zoomSelectionRef.current = null;
     };
   }, []);
+
+  const applyTransform = useCallback((t: ZoomTransform) => {
+    const z = zoomRef.current;
+    const s = zoomSelectionRef.current;
+    if (!z || !s) return;
+    s.call((z as any).transform, t);
+  }, []);
+
+  const resetView = useCallback(() => {
+    applyTransform(zoomIdentity);
+  }, [applyTransform]);
+
+  const zoomInAt = useCallback(
+    (clientX: number, clientY: number, factor = 1.6) => {
+      const z = zoomRef.current;
+      const s = zoomSelectionRef.current;
+      const el = svgRef.current;
+      if (!z || !s || !el) return;
+
+      const rect = el.getBoundingClientRect();
+      const cx = clientX - rect.left;
+      const cy = clientY - rect.top;
+
+      const nextK = Math.min(6, Math.max(0.2, transform.k * factor));
+      const t = zoomIdentity
+        .translate(transform.x, transform.y)
+        .scale(transform.k);
+
+      // compute new transform so that (cx, cy) stays fixed
+      const p0x = (cx - t.x) / t.k;
+      const p0y = (cy - t.y) / t.k;
+      const nextX = cx - p0x * nextK;
+      const nextY = cy - p0y * nextK;
+
+      applyTransform(zoomIdentity.translate(nextX, nextY).scale(nextK));
+    },
+    [applyTransform, transform.k, transform.x, transform.y],
+  );
+
+  // centerOnSelected is defined later (after simNodes is available)
+
+  const onSvgDoubleClick = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      e.preventDefault();
+      zoomInAt(e.clientX, e.clientY, 1.6);
+    },
+    [zoomInAt],
+  );
+
+  const onSvgPointerDown = useCallback(
+    (e: React.PointerEvent<SVGSVGElement>) => {
+      if (e.pointerType !== 'touch') return;
+
+      const now = Date.now();
+      const prev = lastTapRef.current;
+      lastTapRef.current = { t: now, x: e.clientX, y: e.clientY };
+
+      if (!prev) return;
+
+      const dt = now - prev.t;
+      const dx = Math.abs(e.clientX - prev.x);
+      const dy = Math.abs(e.clientY - prev.y);
+
+      if (dt < 320 && dx < 24 && dy < 24) {
+        e.preventDefault();
+        zoomInAt(e.clientX, e.clientY, 1.6);
+      }
+    },
+    [zoomInAt],
+  );
 
   const fetchGraph = useCallback(async () => {
     setError(null);
@@ -188,22 +275,38 @@ export default function GraphClient() {
     void fetchGraph();
   }, [fetchGraph]);
 
+  const filteredGraph = useMemo(() => {
+    if (!graph) return null;
+
+    const allowedTypes = new Set<string>();
+    if (showEvents) allowedTypes.add('event');
+    if (showTopics) allowedTypes.add('topic');
+    if (showTags) allowedTypes.add('tag');
+    if (showPeople) allowedTypes.add('person');
+
+    const nodes = graph.nodes.filter((n) => allowedTypes.has(nodeType(n)));
+    const allowedIds = new Set(nodes.map((n) => n.id));
+    const edges = graph.edges.filter((e) => allowedIds.has(e.from) && allowedIds.has(e.to));
+
+    return { nodes, edges } satisfies Graph;
+  }, [graph, showEvents, showPeople, showTags, showTopics]);
+
   const adjacency = useMemo(() => {
     const map = new Map<string, Set<string>>();
-    if (!graph) return map;
-    for (const e of graph.edges) {
+    if (!filteredGraph) return map;
+    for (const e of filteredGraph.edges) {
       if (!map.has(e.from)) map.set(e.from, new Set());
       if (!map.has(e.to)) map.set(e.to, new Set());
       map.get(e.from)?.add(e.to);
       map.get(e.to)?.add(e.from);
     }
     return map;
-  }, [graph]);
+  }, [filteredGraph]);
 
   const selected = useMemo(() => {
-    if (!graph || !selectedId) return null;
-    return graph.nodes.find((n) => n.id === selectedId) ?? null;
-  }, [graph, selectedId]);
+    if (!filteredGraph || !selectedId) return null;
+    return filteredGraph.nodes.find((n) => n.id === selectedId) ?? null;
+  }, [filteredGraph, selectedId]);
 
   const highlighted = useMemo(() => {
     if (!selectedId) return new Set<string>();
@@ -213,21 +316,38 @@ export default function GraphClient() {
     return set;
   }, [adjacency, selectedId]);
 
+  useEffect(() => {
+    if (!selectedId || !filteredGraph) return;
+    if (!filteredGraph.nodes.some((n) => n.id === selectedId)) {
+      setSelectedId(null);
+    }
+  }, [filteredGraph, selectedId]);
+
   const [simNodes, simLinks] = useMemo(() => {
-    if (!graph) return [[], []] as [SimNode[], SimLink[]];
-    const nodes: SimNode[] = graph.nodes.map((n) => ({ ...n }));
-    const links: SimLink[] = graph.edges.map((e) => ({
+    if (!filteredGraph) return [[], []] as [SimNode[], SimLink[]];
+    const nodes: SimNode[] = filteredGraph.nodes.map((n) => ({ ...n }));
+    const links: SimLink[] = filteredGraph.edges.map((e) => ({
       source: e.from,
       target: e.to,
       type: e.type,
     }));
     return [nodes, links];
-  }, [graph]);
+  }, [filteredGraph]);
+
+  const centerOnSelected = useCallback(() => {
+    if (!selectedId) return;
+    const node = simNodes.find((n) => n.id === selectedId);
+    if (!node || node.x == null || node.y == null) return;
+    const k = transform.k;
+    const x = size.w / 2 - node.x * k;
+    const y = size.h / 2 - node.y * k;
+    applyTransform(zoomIdentity.translate(x, y).scale(k));
+  }, [applyTransform, selectedId, simNodes, size.h, size.w, transform.k]);
 
   const [renderTick, setRenderTick] = useState(0);
 
   useEffect(() => {
-    if (!graph) return;
+    if (!filteredGraph) return;
 
     const nodeById = new Map(simNodes.map((n) => [n.id, n] as const));
     const linksResolved = simLinks.map((l) => ({
@@ -266,7 +386,7 @@ export default function GraphClient() {
       cancelAnimationFrame(raf);
       sim.stop();
     };
-  }, [graph, size.w, size.h, simLinks, simNodes]);
+  }, [filteredGraph, size.w, size.h, simLinks, simNodes]);
 
   // Drag handling
   const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
@@ -307,7 +427,7 @@ export default function GraphClient() {
           <div className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
             Historian Graph
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
             <label htmlFor="graph-limit" className="text-xs text-zinc-500">limit</label>
             <input
               id="graph-limit"
@@ -325,6 +445,42 @@ export default function GraphClient() {
             >
               Refresh
             </button>
+            <button
+              type="button"
+              className="rounded-md border border-zinc-200 px-3 py-1 text-sm hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+              onClick={resetView}
+              title="Reset zoom/pan"
+            >
+              Reset view
+            </button>
+            <button
+              type="button"
+              className="rounded-md border border-zinc-200 px-3 py-1 text-sm hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+              onClick={centerOnSelected}
+              disabled={!selectedId}
+              title="Center on selected node"
+            >
+              Center
+            </button>
+            <div className="flex flex-wrap items-center gap-3 rounded-md border border-zinc-200 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-300">
+              <label className="flex items-center gap-1">
+                <input type="checkbox" checked={showEvents} onChange={(e) => setShowEvents(e.target.checked)} />
+                events
+              </label>
+              <label className="flex items-center gap-1">
+                <input type="checkbox" checked={showTopics} onChange={(e) => setShowTopics(e.target.checked)} />
+                topics
+              </label>
+              <label className="flex items-center gap-1">
+                <input type="checkbox" checked={showTags} onChange={(e) => setShowTags(e.target.checked)} />
+                tags
+              </label>
+              <label className="flex items-center gap-1">
+                <input type="checkbox" checked={showPeople} onChange={(e) => setShowPeople(e.target.checked)} />
+                people
+              </label>
+            </div>
+
             <input
               className="w-40 rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
               placeholder="Ingest key"
@@ -347,6 +503,8 @@ export default function GraphClient() {
             className="h-full w-full select-none"
             role="img"
             aria-label="Historian graph"
+            onDoubleClick={onSvgDoubleClick}
+            onPointerDown={onSvgPointerDown}
           >
             <g
               ref={viewportRef}
