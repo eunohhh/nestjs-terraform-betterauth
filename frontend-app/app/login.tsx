@@ -47,7 +47,7 @@ export default function LoginScreen() {
     >
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.text }]}>allrecords</Text>
-        <Text style={[styles.subtitle, { color: theme.icon }]}>Manage our family services simply.</Text>
+        <Text style={[styles.subtitle, { color: theme.icon }]}>Sign in to manage your clients, schedule, and visit logs.</Text>
       </View>
 
       <View style={styles.footer}>
