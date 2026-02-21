@@ -100,10 +100,11 @@ export default function GraphClient() {
   }, [adjacency, selectedId]);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState({ w: 900, h: 560 });
 
   useEffect(() => {
-    const el = svgRef.current;
+    const el = containerRef.current;
     if (!el) return;
 
     const ro = new ResizeObserver((entries) => {
@@ -200,7 +201,7 @@ export default function GraphClient() {
         onOpenAdd={() => setAddOpen(true)}
       />
 
-      <div className="relative rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <div ref={containerRef} className="relative rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         {isInitialLoading && <LoadingOverlay label="Loading graph…" />}
 
         <GraphCanvas

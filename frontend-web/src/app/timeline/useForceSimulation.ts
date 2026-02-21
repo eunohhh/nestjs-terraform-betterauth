@@ -9,9 +9,16 @@ export function useForceSimulation(graph: Graph | null, size: { w: number; h: nu
   const [simNodes, simLinks] = useMemo(() => {
     if (!graph) return [[], []] as [SimNode[], SimLink[]];
     const nodes: SimNode[] = graph.nodes.map((n) => ({ ...n }));
+
+    // Give nodes initial positions so the first paint doesn't pile up at (0,0)
+    // (d3-force will quickly take over on the next ticks)
+    for (const node of nodes) {
+      if (node.x == null) node.x = size.w / 2 + (Math.random() - 0.5) * 80;
+      if (node.y == null) node.y = size.h / 2 + (Math.random() - 0.5) * 80;
+    }
     const links: SimLink[] = graph.edges.map((e) => ({ source: e.from, target: e.to, type: e.type }));
     return [nodes, links];
-  }, [graph]);
+  }, [graph, size.h, size.w]);
 
   useEffect(() => {
     if (!graph) return;
