@@ -1,4 +1,4 @@
-import type { HistorianEventNode, NodeType } from './types';
+import type { HistorianEventNode, NodeType } from '../_types/types';
 
 export function nodeType(n: HistorianEventNode): NodeType {
   if (n.id.startsWith('topic:')) return 'topic';

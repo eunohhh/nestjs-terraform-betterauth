@@ -1,19 +1,18 @@
 'use client';
 
-import { type ZoomTransform, zoomIdentity } from 'd3-zoom';
+import { zoomIdentity } from 'd3-zoom';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
-import type { Graph } from './types';
-import { nodeType } from './graph-utils';
-import { toast } from '@/components/ui/use-toast';
-import { useGraphData } from './useGraphData';
-import { useZoomPan } from './useZoom';
-import { useForceSimulation } from './useForceSimulation';
-import { GraphToolbar } from './GraphToolbar';
-import { GraphCanvas } from './GraphCanvas';
-import { LoadingOverlay } from './LoadingOverlay';
+import { toast } from 'sonner';
+import { nodeType } from '../_libs/graph-utils';
+import { useForceSimulation } from '../_libs/useForceSimulation';
+import { useGraphData } from '../_libs/useGraphData';
+import { useZoomPan } from '../_libs/useZoom';
+import type { Graph } from '../_types/types';
 import { AddEventDialog, type AddEventForm } from './AddEventDialog';
 import { DetailsDialog } from './DetailsDialog';
+import { GraphCanvas } from './GraphCanvas';
+import { GraphToolbar } from './GraphToolbar';
+import { LoadingOverlay } from './LoadingOverlay';
 
 export default function GraphClient() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -41,14 +40,18 @@ export default function GraphClient() {
     content: '',
     linkFromSelected: true,
   });
+  const [size, setSize] = useState({ w: 900, h: 560 });
+
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Drag handling (keep simple; works alongside zoom)
+  const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
+
+  const { transform, resetView, onSvgDoubleClick, onSvgPointerDown, applyTransform } =
+    useZoomPan(svgRef);
 
   const { graph, error, isInitialLoading, fetchGraph } = useGraphData(limit);
-
-  useEffect(() => {
-    if (error) {
-      toast({ title: 'Error', description: error, variant: 'destructive' });
-    }
-  }, [error]);
 
   const filteredGraph: Graph | null = useMemo(() => {
     if (!graph) return null;
@@ -65,6 +68,17 @@ export default function GraphClient() {
 
     return { nodes, edges };
   }, [graph, showEvents, showPeople, showTags, showTopics]);
+
+  const { simNodes, simLinks, nodesRef, nudge, renderTick } = useForceSimulation(
+    filteredGraph,
+    size,
+  );
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+    }
+  }, [error]);
 
   useEffect(() => {
     if (!selectedId || !filteredGraph) return;
@@ -99,10 +113,6 @@ export default function GraphClient() {
     return set;
   }, [adjacency, selectedId]);
 
-  const svgRef = useRef<SVGSVGElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [size, setSize] = useState({ w: 900, h: 560 });
-
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -120,10 +130,6 @@ export default function GraphClient() {
     return () => ro.disconnect();
   }, []);
 
-  const { transform, resetView, onSvgDoubleClick, onSvgPointerDown, applyTransform } = useZoomPan(svgRef);
-
-  const { simNodes, simLinks, renderTick } = useForceSimulation(filteredGraph, size);
-
   const centerOnSelected = useCallback(() => {
     if (!selectedId) return;
     const node = simNodes.find((n) => n.id === selectedId);
@@ -134,9 +140,6 @@ export default function GraphClient() {
     // use same scale, only pan
     applyTransform(zoomIdentity.translate(x, y).scale(k));
   }, [applyTransform, selectedId, simNodes, size.h, size.w, transform]);
-
-  // Drag handling (keep simple; works alongside zoom)
-  const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
 
   const onNodePointerDown = (e: React.PointerEvent, id: string) => {
     const n = simNodes.find((x) => x.id === id);
@@ -150,12 +153,13 @@ export default function GraphClient() {
   const onPointerMove = (e: React.PointerEvent) => {
     const drag = dragRef.current;
     if (!drag) return;
-    const n = simNodes.find((x) => x.id === drag.id);
+    const n = nodesRef.current.find((x) => x.id === drag.id);
     if (!n) return;
     n.x = e.clientX + drag.dx;
     n.y = e.clientY + drag.dy;
     n.vx = 0;
     n.vy = 0;
+    nudge();
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
@@ -165,7 +169,11 @@ export default function GraphClient() {
     }
   };
 
-  const ingest = async (payload: { ingestKey: string; event: any; previousEventId: string | null }) => {
+  const ingest = async (payload: {
+    ingestKey: string;
+    event: any;
+    previousEventId: string | null;
+  }) => {
     const res = await fetch(`/api/ingest`, {
       method: 'POST',
       headers: {
@@ -201,7 +209,10 @@ export default function GraphClient() {
         onOpenAdd={() => setAddOpen(true)}
       />
 
-      <div ref={containerRef} className="relative rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <div
+        ref={containerRef}
+        className="relative rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+      >
         {isInitialLoading && <LoadingOverlay label="Loading graph…" />}
 
         <GraphCanvas
@@ -231,12 +242,7 @@ export default function GraphClient() {
         form={form}
         setForm={setForm}
         onSave={async (payload) => {
-          try {
-            await ingest(payload);
-          } catch (e) {
-            // Bubble up via alert-like UI (reuse error banner)
-            throw e;
-          }
+          await ingest(payload);
         }}
       />
 

@@ -1,5 +1,8 @@
 'use client';
 
+import ReactMarkdown from 'react-markdown';
+import rehypeHighlight from 'rehype-highlight';
+import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -10,11 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import ReactMarkdown from 'react-markdown';
-import rehypeHighlight from 'rehype-highlight';
-import remarkGfm from 'remark-gfm';
-import type { Graph, HistorianEventNode } from './types';
-import { labelFor, nodeType } from './graph-utils';
+import { labelFor, nodeType } from '../_libs/graph-utils';
+import type { Graph, HistorianEventNode } from '../_types/types';
 
 export function DetailsDialog(props: {
   open: boolean;
@@ -82,7 +82,9 @@ export function DetailsDialog(props: {
                     {n.content}
                   </ReactMarkdown>
                 </div>
-                {n.sourcePath && <div className="text-xs text-zinc-500 break-all">{n.sourcePath}</div>}
+                {n.sourcePath && (
+                  <div className="text-xs text-zinc-500 break-all">{n.sourcePath}</div>
+                )}
               </>
             )}
 
@@ -109,7 +111,9 @@ export function DetailsDialog(props: {
                       onClick={() => props.onSelectNeighbor(id)}
                       className={`rounded-full border px-2 py-1 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-900 ${cls}`}
                     >
-                      {neighbor.title.length > 26 ? `${neighbor.title.slice(0, 26)}…` : neighbor.title}
+                      {neighbor.title.length > 26
+                        ? `${neighbor.title.slice(0, 26)}…`
+                        : neighbor.title}
                     </button>
                   );
                 })}
