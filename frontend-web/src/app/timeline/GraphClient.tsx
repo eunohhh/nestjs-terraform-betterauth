@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Graph } from './types';
 import { nodeType } from './graph-utils';
+import { toast } from '@/components/ui/use-toast';
 import { useGraphData } from './useGraphData';
 import { useZoomPan } from './useZoom';
 import { useForceSimulation } from './useForceSimulation';
@@ -42,6 +43,12 @@ export default function GraphClient() {
   });
 
   const { graph, error, isInitialLoading, fetchGraph } = useGraphData(limit);
+
+  useEffect(() => {
+    if (error) {
+      toast({ title: 'Error', description: error, variant: 'destructive' });
+    }
+  }, [error]);
 
   const filteredGraph: Graph | null = useMemo(() => {
     if (!graph) return null;
@@ -114,7 +121,7 @@ export default function GraphClient() {
 
   const { transform, resetView, onSvgDoubleClick, onSvgPointerDown, applyTransform } = useZoomPan(svgRef);
 
-  const { simNodes, simLinks } = useForceSimulation(filteredGraph, size);
+  const { simNodes, simLinks, renderTick } = useForceSimulation(filteredGraph, size);
 
   const centerOnSelected = useCallback(() => {
     if (!selectedId) return;
@@ -193,12 +200,6 @@ export default function GraphClient() {
         onOpenAdd={() => setAddOpen(true)}
       />
 
-      {error && (
-        <div className="mb-3 rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
-          {error}
-        </div>
-      )}
-
       <div className="relative rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         {isInitialLoading && <LoadingOverlay label="Loading graph…" />}
 
@@ -218,6 +219,7 @@ export default function GraphClient() {
 
         <div className="mt-3 text-xs text-zinc-500">
           Wheel/pinch to zoom. Double click/tap to zoom in. Drag nodes to adjust.
+          <span className="sr-only">tick {renderTick}</span>
         </div>
       </div>
 

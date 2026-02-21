@@ -1,6 +1,9 @@
 'use client';
 
+import * as React from 'react';
+
 import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/use-toast';
 import {
   Dialog,
   DialogClose,
@@ -43,6 +46,8 @@ export function AddEventDialog(props: {
     previousEventId: string | null;
   }) => Promise<void>;
 }) {
+  const [isSaving, setIsSaving] = React.useState(false);
+
   const f = props.form;
   const set = (patch: Partial<AddEventForm>) => props.setForm({ ...f, ...patch });
 
@@ -132,38 +137,53 @@ export function AddEventDialog(props: {
             <Button variant="outline">Cancel</Button>
           </DialogClose>
           <Button
-            disabled={!canSave}
+            disabled={!canSave || isSaving}
             onClick={async () => {
               const previousEventId =
                 f.linkFromSelected && props.selected && !isTopic(props.selected) ? props.selected.id : null;
 
-              await props.onSave({
-                ingestKey: f.ingestKey,
-                event: {
-                  created: f.created,
-                  title: f.title,
-                  theme: f.theme || null,
-                  kind: f.kind || null,
-                  era: f.era || null,
-                  tags: f.tags
-                    .split(',')
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                  people: f.people
-                    .split(',')
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                  source: f.source || null,
-                  sourcePath: f.sourcePath || '',
-                  content: f.content,
-                },
-                previousEventId,
-              });
+              try {
+                setIsSaving(true);
+                await props.onSave({
+                  ingestKey: f.ingestKey,
+                  event: {
+                    created: f.created,
+                    title: f.title,
+                    theme: f.theme || null,
+                    kind: f.kind || null,
+                    era: f.era || null,
+                    tags: f.tags
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                    people: f.people
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                    source: f.source || null,
+                    sourcePath: f.sourcePath || '',
+                    content: f.content,
+                  },
+                  previousEventId,
+                });
 
-              props.onOpenChange(false);
+                toast({ title: 'Saved', description: 'Historian event added.' });
+                props.onOpenChange(false);
+              } catch (e) {
+                toast({
+                  title: 'Save failed',
+                  description: e instanceof Error ? e.message : 'Unknown error',
+                  variant: 'destructive',
+                });
+              } finally {
+                setIsSaving(false);
+              }
             }}
           >
-            Save
+            {isSaving && (
+              <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white dark:border-zinc-900/30 dark:border-t-zinc-900" />
+            )}
+            {isSaving ? 'Saving…' : 'Save'}
           </Button>
         </DialogFooter>
       </DialogContent>
