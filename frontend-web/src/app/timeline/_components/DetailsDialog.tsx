@@ -28,16 +28,17 @@ export function DetailsDialog(props: {
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{n ? labelFor(n) : 'Details'}</DialogTitle>
           <DialogDescription>{n ? nodeType(n) : ''}</DialogDescription>
         </DialogHeader>
 
-        {!n && <div className="text-sm text-zinc-500">Select a node.</div>}
+        <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+          {!n && <div className="text-sm text-zinc-500">Select a node.</div>}
 
-        {n && (
-          <div className="mt-4 space-y-4">
+          {n && (
+            <div className="space-y-4">
             <div>
               {n.theme && (
                 <div className="mt-1 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
@@ -119,10 +120,11 @@ export function DetailsDialog(props: {
                 })}
               </div>
             </div>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="pt-2">
           <DialogClose asChild>
             <Button variant="outline">Close</Button>
           </DialogClose>
