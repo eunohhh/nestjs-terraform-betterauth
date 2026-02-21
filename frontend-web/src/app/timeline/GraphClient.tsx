@@ -6,6 +6,20 @@ import { zoom, zoomIdentity, type ZoomTransform } from 'd3-zoom';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type HistorianEventNode = {
@@ -73,6 +87,9 @@ export default function GraphClient() {
   const [graph, setGraph] = useState<Graph | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+
   const [limit, setLimit] = useState(60);
   const [ingestKey, setIngestKey] = useState('');
 
@@ -397,6 +414,7 @@ export default function GraphClient() {
     (e.currentTarget as any).setPointerCapture?.(e.pointerId);
     dragRef.current = { id, dx: n.x - e.clientX, dy: n.y - e.clientY };
     setSelectedId(id);
+    setDetailsOpen(true);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
@@ -421,47 +439,35 @@ export default function GraphClient() {
   const nodesToRender = simNodes;
 
   return (
-    <div className="grid gap-4 md:grid-cols-[1fr_360px]">
+    <div>
       <div className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <div className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-            Historian Graph
-          </div>
+          <div className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Historian Graph</div>
+
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <label htmlFor="graph-limit" className="text-xs text-zinc-500">limit</label>
-            <input
+            <Label htmlFor="graph-limit" className="text-xs text-zinc-500">
+              limit
+            </Label>
+            <Input
               id="graph-limit"
-              className="w-20 rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
+              className="w-20"
               type="number"
               min={10}
               max={200}
               value={limit}
               onChange={(e) => setLimit(Number(e.target.value))}
             />
-            <button
-              type="button"
-              className="rounded-md border border-zinc-200 px-3 py-1 text-sm hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
-              onClick={fetchGraph}
-            >
+
+            <Button variant="outline" onClick={fetchGraph}>
               Refresh
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-zinc-200 px-3 py-1 text-sm hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
-              onClick={resetView}
-              title="Reset zoom/pan"
-            >
+            </Button>
+            <Button variant="outline" onClick={resetView} title="Reset zoom/pan">
               Reset view
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-zinc-200 px-3 py-1 text-sm hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
-              onClick={centerOnSelected}
-              disabled={!selectedId}
-              title="Center on selected node"
-            >
+            </Button>
+            <Button variant="outline" onClick={centerOnSelected} disabled={!selectedId} title="Center on selected node">
               Center
-            </button>
+            </Button>
+
             <div className="flex flex-wrap items-center gap-3 rounded-md border border-zinc-200 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-300">
               <label className="flex items-center gap-1">
                 <input type="checkbox" checked={showEvents} onChange={(e) => setShowEvents(e.target.checked)} />
@@ -479,15 +485,149 @@ export default function GraphClient() {
                 <input type="checkbox" checked={showPeople} onChange={(e) => setShowPeople(e.target.checked)} />
                 people
               </label>
-            </div>
 
-            <input
-              className="w-40 rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
-              placeholder="Ingest key"
-              value={ingestKey}
-              onChange={(e) => setIngestKey(e.target.value)}
-            />
-            <div className="text-xs text-zinc-500">(Key is required to add content)</div>
+              <Dialog open={addOpen} onOpenChange={setAddOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="default">
+                    Add event
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Add Historian Event</DialogTitle>
+                    <DialogDescription>
+                      Ingest key is required. This writes directly to Neo4j via GraphQL.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="mt-4 grid gap-3">
+                    <div className="grid gap-1">
+                      <Label htmlFor="ingest-key">Ingest key</Label>
+                      <Input
+                        id="ingest-key"
+                        placeholder="INGEST_KEY"
+                        value={ingestKey}
+                        onChange={(e) => setIngestKey(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="grid gap-1">
+                      <Label htmlFor="new-created">created</Label>
+                      <Input
+                        id="new-created"
+                        placeholder="YYYY-MM-DD"
+                        value={newCreated}
+                        onChange={(e) => setNewCreated(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="grid gap-1">
+                      <Label htmlFor="new-title">title</Label>
+                      <Input id="new-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
+                    </div>
+
+                    <div className="grid gap-1">
+                      <Label htmlFor="new-theme">theme</Label>
+                      <Input id="new-theme" value={newTheme} onChange={(e) => setNewTheme(e.target.value)} />
+                    </div>
+
+                    <div className="grid gap-1">
+                      <Label htmlFor="new-kind">kind</Label>
+                      <Input id="new-kind" value={newKind} onChange={(e) => setNewKind(e.target.value)} />
+                    </div>
+
+                    <div className="grid gap-1">
+                      <Label htmlFor="new-era">era</Label>
+                      <Input id="new-era" value={newEra} onChange={(e) => setNewEra(e.target.value)} />
+                    </div>
+
+                    <div className="grid gap-1">
+                      <Label htmlFor="new-tags">tags</Label>
+                      <Input
+                        id="new-tags"
+                        placeholder="comma separated"
+                        value={newTags}
+                        onChange={(e) => setNewTags(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="grid gap-1">
+                      <Label htmlFor="new-people">people</Label>
+                      <Input
+                        id="new-people"
+                        placeholder="comma separated"
+                        value={newPeople}
+                        onChange={(e) => setNewPeople(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="grid gap-1">
+                      <Label htmlFor="new-source">source</Label>
+                      <Input id="new-source" value={newSource} onChange={(e) => setNewSource(e.target.value)} />
+                    </div>
+
+                    <div className="grid gap-1">
+                      <Label htmlFor="new-sourcePath">sourcePath</Label>
+                      <Input id="new-sourcePath" value={newSourcePath} onChange={(e) => setNewSourcePath(e.target.value)} />
+                    </div>
+
+                    <div className="grid gap-1">
+                      <Label htmlFor="new-content">content</Label>
+                      <Textarea
+                        id="new-content"
+                        className="h-56"
+                        value={newContent}
+                        onChange={(e) => setNewContent(e.target.value)}
+                      />
+                    </div>
+
+                    <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
+                      <input
+                        type="checkbox"
+                        checked={linkFromSelected}
+                        onChange={(e) => setLinkFromSelected(e.target.checked)}
+                      />
+                      Link from selected event as previous (creates NEXT edge)
+                    </label>
+                  </div>
+
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button
+                      onClick={async () => {
+                        await ingest({
+                          event: {
+                            created: newCreated,
+                            title: newTitle,
+                            theme: newTheme || null,
+                            kind: newKind || null,
+                            era: newEra || null,
+                            tags: newTags
+                              .split(',')
+                              .map((s) => s.trim())
+                              .filter(Boolean),
+                            people: newPeople
+                              .split(',')
+                              .map((s) => s.trim())
+                              .filter(Boolean),
+                            source: newSource || null,
+                            sourcePath: newSourcePath || '',
+                            content: newContent,
+                          },
+                          previousEventId: linkFromSelected && selected && !isTopic(selected) ? selected.id : null,
+                        });
+                        setAddOpen(false);
+                      }}
+                      disabled={!ingestKey || !newCreated || !newTitle || !newContent}
+                    >
+                      Save
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </div>
 
@@ -589,147 +729,49 @@ export default function GraphClient() {
         </div>
       </div>
 
-      <aside className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="mb-4">
-          <div className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Add Historian Event</div>
-          <div className="mt-1 text-xs text-zinc-500">
-            Writes to Neo4j via GraphQL. Admin key stays server-side. You must enter the ingest key.
-          </div>
-
-          <div className="mt-3 grid gap-2">
-            <input
-              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
-              placeholder="created (YYYY-MM-DD)"
-              value={newCreated}
-              onChange={(e) => setNewCreated(e.target.value)}
-            />
-            <input
-              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
-              placeholder="title"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-            />
-            <input
-              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
-              placeholder="theme (optional)"
-              value={newTheme}
-              onChange={(e) => setNewTheme(e.target.value)}
-            />
-            <input
-              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
-              placeholder="kind (optional, e.g. concept)"
-              value={newKind}
-              onChange={(e) => setNewKind(e.target.value)}
-            />
-            <input
-              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
-              placeholder="era (optional, e.g. 1990s–2000s)"
-              value={newEra}
-              onChange={(e) => setNewEra(e.target.value)}
-            />
-            <input
-              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
-              placeholder="tags (comma separated, optional)"
-              value={newTags}
-              onChange={(e) => setNewTags(e.target.value)}
-            />
-            <input
-              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
-              placeholder="people (comma separated, optional)"
-              value={newPeople}
-              onChange={(e) => setNewPeople(e.target.value)}
-            />
-            <input
-              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
-              placeholder="source (optional)"
-              value={newSource}
-              onChange={(e) => setNewSource(e.target.value)}
-            />
-            <input
-              className="w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-sm dark:border-zinc-800"
-              placeholder="sourcePath (optional)"
-              value={newSourcePath}
-              onChange={(e) => setNewSourcePath(e.target.value)}
-            />
-            <textarea
-              className="h-40 w-full resize-none rounded-md border border-zinc-200 bg-transparent px-2 py-2 text-sm dark:border-zinc-800"
-              placeholder="content (markdown)"
-              value={newContent}
-              onChange={(e) => setNewContent(e.target.value)}
-            />
-
-            <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
-              <input
-                type="checkbox"
-                checked={linkFromSelected}
-                onChange={(e) => setLinkFromSelected(e.target.checked)}
-              />
-              Link from selected event as previous (creates NEXT edge)
-            </label>
-
-            <button
-              type="button"
-              className="rounded-md bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
-              disabled={!ingestKey || !newCreated || !newTitle || !newContent}
-              onClick={() =>
-                ingest({
-                  event: {
-                    created: newCreated,
-                    title: newTitle,
-                    theme: newTheme || null,
-                    kind: newKind || null,
-                    era: newEra || null,
-                    tags: newTags
-                      .split(',')
-                      .map((s) => s.trim())
-                      .filter(Boolean),
-                    people: newPeople
-                      .split(',')
-                      .map((s) => s.trim())
-                      .filter(Boolean),
-                    source: newSource || null,
-                    sourcePath: newSourcePath || '',
-                    content: newContent,
-                  },
-                  previousEventId: linkFromSelected && selected && !isTopic(selected) ? selected.id : null,
-                })
-              }
-            >
-              Save Event
-            </button>
-          </div>
-        </div>
-
-        <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
-          <div className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">Details</div>
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{selected ? labelFor(selected) : 'Details'}</DialogTitle>
+            <DialogDescription>
+              {selected ? nodeType(selected) : ''}
+            </DialogDescription>
+          </DialogHeader>
 
           {!selected && <div className="text-sm text-zinc-500">Select a node.</div>}
 
           {selected && (
-            <div className="space-y-3">
+            <div className="mt-4 space-y-4">
               <div>
-                <div className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{labelFor(selected)}</div>
                 {selected.theme && (
                   <div className="mt-1 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
                     {selected.theme}
                   </div>
                 )}
-                {selected.source && <div className="mt-1 text-xs text-zinc-500">source: {selected.source}</div>}
+                {selected.source && <div className="mt-2 text-xs text-zinc-500">source: {selected.source}</div>}
                 {selected.kind && <div className="mt-1 text-xs text-zinc-500">kind: {selected.kind}</div>}
                 {selected.era && <div className="mt-1 text-xs text-zinc-500">era: {selected.era}</div>}
+
                 {selected.tags && selected.tags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {selected.tags.slice(0, 12).map((t) => (
-                      <span key={t} className="rounded-full bg-purple-50 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-950/40 dark:text-purple-200">
+                    {selected.tags.slice(0, 16).map((t) => (
+                      <span
+                        key={t}
+                        className="rounded-full bg-purple-50 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-950/40 dark:text-purple-200"
+                      >
                         {t}
                       </span>
                     ))}
                   </div>
                 )}
+
                 {selected.people && selected.people.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {selected.people.slice(0, 12).map((p) => (
-                      <span key={p} className="rounded-full bg-orange-50 px-2 py-0.5 text-xs text-orange-700 dark:bg-orange-950/40 dark:text-orange-200">
+                    {selected.people.slice(0, 16).map((p) => (
+                      <span
+                        key={p}
+                        className="rounded-full bg-orange-50 px-2 py-0.5 text-xs text-orange-700 dark:bg-orange-950/40 dark:text-orange-200"
+                      >
                         {p}
                       </span>
                     ))}
@@ -737,13 +779,10 @@ export default function GraphClient() {
                 )}
               </div>
 
-              {!isTopic(selected) && (
+              {nodeType(selected) === 'event' && (
                 <>
-                  <div className="markdown rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm leading-6 text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-200">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      rehypePlugins={[rehypeHighlight]}
-                    >
+                  <div className="markdown max-h-[55vh] overflow-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm leading-6 text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-200">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
                       {selected.content}
                     </ReactMarkdown>
                   </div>
@@ -753,23 +792,30 @@ export default function GraphClient() {
 
               <div>
                 <div className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Neighbors</div>
-                <div className="mt-1 flex flex-wrap gap-2">
-                  {[...(adjacency.get(selected.id) ?? [])].slice(0, 20).map((id) => {
-                    const n = graph?.nodes.find((x) => x.id === id);
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[...(adjacency.get(selected.id) ?? [])].slice(0, 30).map((id) => {
+                    const n = filteredGraph?.nodes.find((x) => x.id === id);
                     if (!n) return null;
-                    const topic = isTopic(n);
+                    const t = nodeType(n);
+                    const cls =
+                      t === 'topic'
+                        ? 'border-emerald-200 text-emerald-700 dark:border-emerald-900/50 dark:text-emerald-200'
+                        : t === 'tag'
+                          ? 'border-purple-200 text-purple-700 dark:border-purple-900/50 dark:text-purple-200'
+                          : t === 'person'
+                            ? 'border-orange-200 text-orange-700 dark:border-orange-900/50 dark:text-orange-200'
+                            : 'border-zinc-200 text-zinc-700 dark:border-zinc-800 dark:text-zinc-200';
                     return (
                       <button
                         type="button"
                         key={id}
-                        onClick={() => setSelectedId(id)}
-                        className={`rounded-full border px-2 py-1 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-900 ${
-                          topic
-                            ? 'border-emerald-200 text-emerald-700 dark:border-emerald-900/50 dark:text-emerald-200'
-                            : 'border-zinc-200 text-zinc-700 dark:border-zinc-800 dark:text-zinc-200'
-                        }`}
+                        onClick={() => {
+                          setSelectedId(id);
+                          setDetailsOpen(true);
+                        }}
+                        className={`rounded-full border px-2 py-1 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-900 ${cls}`}
                       >
-                        {n.title.length > 22 ? `${n.title.slice(0, 22)}…` : n.title}
+                        {n.title.length > 26 ? `${n.title.slice(0, 26)}…` : n.title}
                       </button>
                     );
                   })}
@@ -777,8 +823,14 @@ export default function GraphClient() {
               </div>
             </div>
           )}
-        </div>
-      </aside>
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Close</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
