@@ -2,7 +2,8 @@
 
 import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation } from 'd3-force';
 import { select } from 'd3-selection';
-import { zoom, zoomIdentity, type ZoomTransform } from 'd3-zoom';
+import { type ZoomTransform, zoom, zoomIdentity } from 'd3-zoom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
@@ -20,7 +21,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type HistorianEventNode = {
   id: string;
@@ -192,9 +192,7 @@ export default function GraphClient() {
       const cy = clientY - rect.top;
 
       const nextK = Math.min(6, Math.max(0.2, transform.k * factor));
-      const t = zoomIdentity
-        .translate(transform.x, transform.y)
-        .scale(transform.k);
+      const t = zoomIdentity.translate(transform.x, transform.y).scale(transform.k);
 
       // compute new transform so that (cx, cy) stays fixed
       const p0x = (cx - t.x) / t.k;
@@ -442,7 +440,9 @@ export default function GraphClient() {
     <div>
       <div className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <div className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Historian Graph</div>
+          <div className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+            Historian Graph
+          </div>
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <Label htmlFor="graph-limit" className="text-xs text-zinc-500">
@@ -464,25 +464,46 @@ export default function GraphClient() {
             <Button variant="outline" onClick={resetView} title="Reset zoom/pan">
               Reset view
             </Button>
-            <Button variant="outline" onClick={centerOnSelected} disabled={!selectedId} title="Center on selected node">
+            <Button
+              variant="outline"
+              onClick={centerOnSelected}
+              disabled={!selectedId}
+              title="Center on selected node"
+            >
               Center
             </Button>
 
             <div className="flex flex-wrap items-center gap-3 rounded-md border border-zinc-200 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-300">
               <label className="flex items-center gap-1">
-                <input type="checkbox" checked={showEvents} onChange={(e) => setShowEvents(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={showEvents}
+                  onChange={(e) => setShowEvents(e.target.checked)}
+                />
                 events
               </label>
               <label className="flex items-center gap-1">
-                <input type="checkbox" checked={showTopics} onChange={(e) => setShowTopics(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={showTopics}
+                  onChange={(e) => setShowTopics(e.target.checked)}
+                />
                 topics
               </label>
               <label className="flex items-center gap-1">
-                <input type="checkbox" checked={showTags} onChange={(e) => setShowTags(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={showTags}
+                  onChange={(e) => setShowTags(e.target.checked)}
+                />
                 tags
               </label>
               <label className="flex items-center gap-1">
-                <input type="checkbox" checked={showPeople} onChange={(e) => setShowPeople(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={showPeople}
+                  onChange={(e) => setShowPeople(e.target.checked)}
+                />
                 people
               </label>
 
@@ -523,22 +544,38 @@ export default function GraphClient() {
 
                     <div className="grid gap-1">
                       <Label htmlFor="new-title">title</Label>
-                      <Input id="new-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
+                      <Input
+                        id="new-title"
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                      />
                     </div>
 
                     <div className="grid gap-1">
                       <Label htmlFor="new-theme">theme</Label>
-                      <Input id="new-theme" value={newTheme} onChange={(e) => setNewTheme(e.target.value)} />
+                      <Input
+                        id="new-theme"
+                        value={newTheme}
+                        onChange={(e) => setNewTheme(e.target.value)}
+                      />
                     </div>
 
                     <div className="grid gap-1">
                       <Label htmlFor="new-kind">kind</Label>
-                      <Input id="new-kind" value={newKind} onChange={(e) => setNewKind(e.target.value)} />
+                      <Input
+                        id="new-kind"
+                        value={newKind}
+                        onChange={(e) => setNewKind(e.target.value)}
+                      />
                     </div>
 
                     <div className="grid gap-1">
                       <Label htmlFor="new-era">era</Label>
-                      <Input id="new-era" value={newEra} onChange={(e) => setNewEra(e.target.value)} />
+                      <Input
+                        id="new-era"
+                        value={newEra}
+                        onChange={(e) => setNewEra(e.target.value)}
+                      />
                     </div>
 
                     <div className="grid gap-1">
@@ -563,12 +600,20 @@ export default function GraphClient() {
 
                     <div className="grid gap-1">
                       <Label htmlFor="new-source">source</Label>
-                      <Input id="new-source" value={newSource} onChange={(e) => setNewSource(e.target.value)} />
+                      <Input
+                        id="new-source"
+                        value={newSource}
+                        onChange={(e) => setNewSource(e.target.value)}
+                      />
                     </div>
 
                     <div className="grid gap-1">
                       <Label htmlFor="new-sourcePath">sourcePath</Label>
-                      <Input id="new-sourcePath" value={newSourcePath} onChange={(e) => setNewSourcePath(e.target.value)} />
+                      <Input
+                        id="new-sourcePath"
+                        value={newSourcePath}
+                        onChange={(e) => setNewSourcePath(e.target.value)}
+                      />
                     </div>
 
                     <div className="grid gap-1">
@@ -616,7 +661,8 @@ export default function GraphClient() {
                             sourcePath: newSourcePath || '',
                             content: newContent,
                           },
-                          previousEventId: linkFromSelected && selected && !isTopic(selected) ? selected.id : null,
+                          previousEventId:
+                            linkFromSelected && selected && !isTopic(selected) ? selected.id : null,
                         });
                         setAddOpen(false);
                       }}
@@ -652,71 +698,76 @@ export default function GraphClient() {
             >
               {/* edges */}
               <g opacity={0.65}>
-              {simLinks.map((l, idx) => {
-                const s =
-                  typeof l.source === 'string'
-                    ? simNodes.find((n) => n.id === l.source)
-                    : (l.source as SimNode);
-                const t =
-                  typeof l.target === 'string'
-                    ? simNodes.find((n) => n.id === l.target)
-                    : (l.target as SimNode);
-                if (!s || !t || s.x == null || t.x == null) return null;
-                const isHL = selectedId ? highlighted.has(s.id) && highlighted.has(t.id) : false;
-                const stroke = l.type === 'THEME' ? '#10b981' : '#a1a1aa';
-                return (
-                  <line
-                    key={idx}
-                    x1={s.x}
-                    y1={s.y}
-                    x2={t.x}
-                    y2={t.y}
-                    stroke={stroke}
-                    strokeWidth={isHL ? 2.2 : 1}
-                    opacity={isHL ? 0.95 : 0.35}
-                  />
-                );
-              })}
+                {simLinks.map((l, idx) => {
+                  const s =
+                    typeof l.source === 'string'
+                      ? simNodes.find((n) => n.id === l.source)
+                      : (l.source as SimNode);
+                  const t =
+                    typeof l.target === 'string'
+                      ? simNodes.find((n) => n.id === l.target)
+                      : (l.target as SimNode);
+                  if (!s || !t || s.x == null || t.x == null) return null;
+                  const isHL = selectedId ? highlighted.has(s.id) && highlighted.has(t.id) : false;
+                  const stroke = l.type === 'THEME' ? '#10b981' : '#a1a1aa';
+                  return (
+                    <line
+                      key={idx}
+                      x1={s.x}
+                      y1={s.y}
+                      x2={t.x}
+                      y2={t.y}
+                      stroke={stroke}
+                      strokeWidth={isHL ? 2.2 : 1}
+                      opacity={isHL ? 0.95 : 0.35}
+                    />
+                  );
+                })}
               </g>
 
               {/* nodes */}
               <g>
-              {nodesToRender.map((n) => {
-                const x = n.x ?? 0;
-                const y = n.y ?? 0;
-                const t = nodeType(n);
-                const hl = selectedId ? highlighted.has(n.id) : true;
+                {nodesToRender.map((n) => {
+                  const x = n.x ?? 0;
+                  const y = n.y ?? 0;
+                  const t = nodeType(n);
+                  const hl = selectedId ? highlighted.has(n.id) : true;
 
-                const r = t === 'event' ? 10 : 12;
-                const fill =
-                  t === 'topic'
-                    ? '#10b981'
-                    : t === 'tag'
-                      ? '#a855f7'
-                      : t === 'person'
-                        ? '#f97316'
-                        : '#2563eb';
-                const stroke = selectedId === n.id ? '#f59e0b' : '#0b1220';
+                  const r = t === 'event' ? 10 : 12;
+                  const fill =
+                    t === 'topic'
+                      ? '#10b981'
+                      : t === 'tag'
+                        ? '#a855f7'
+                        : t === 'person'
+                          ? '#f97316'
+                          : '#2563eb';
+                  const stroke = selectedId === n.id ? '#f59e0b' : '#0b1220';
 
-                return (
-                  <g
-                    key={n.id}
-                    transform={`translate(${x}, ${y})`}
-                    onPointerDown={(e) => onPointerDownNode(e, n.id)}
-                    style={{ cursor: 'pointer', opacity: hl ? 1 : 0.18 }}
-                  >
-                    <circle
-                      r={r}
-                      fill={fill}
-                      stroke={stroke}
-                      strokeWidth={selectedId === n.id ? 3 : 1.2}
-                    />
-                    <text x={r + 6} y={4} fontSize={11} fill={t === 'topic' ? '#065f46' : '#1f2937'}>
-                      {n.title.length > 40 ? `${n.title.slice(0, 40)}…` : n.title}
-                    </text>
-                  </g>
-                );
-              })}
+                  return (
+                    <g
+                      key={n.id}
+                      transform={`translate(${x}, ${y})`}
+                      onPointerDown={(e) => onPointerDownNode(e, n.id)}
+                      style={{ cursor: 'pointer', opacity: hl ? 1 : 0.18 }}
+                    >
+                      <circle
+                        r={r}
+                        fill={fill}
+                        stroke={stroke}
+                        strokeWidth={selectedId === n.id ? 3 : 1.2}
+                      />
+                      <text
+                        x={r + 6}
+                        y={4}
+                        fontSize={11}
+                        fill={t === 'topic' ? '#065f46' : '#1f2937'}
+                      >
+                        {n.title.length > 40 ? `${n.title.slice(0, 40)}…` : n.title}
+                      </text>
+                    </g>
+                  );
+                })}
               </g>
             </g>
           </svg>
@@ -733,9 +784,7 @@ export default function GraphClient() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>{selected ? labelFor(selected) : 'Details'}</DialogTitle>
-            <DialogDescription>
-              {selected ? nodeType(selected) : ''}
-            </DialogDescription>
+            <DialogDescription>{selected ? nodeType(selected) : ''}</DialogDescription>
           </DialogHeader>
 
           {!selected && <div className="text-sm text-zinc-500">Select a node.</div>}
@@ -748,9 +797,15 @@ export default function GraphClient() {
                     {selected.theme}
                   </div>
                 )}
-                {selected.source && <div className="mt-2 text-xs text-zinc-500">source: {selected.source}</div>}
-                {selected.kind && <div className="mt-1 text-xs text-zinc-500">kind: {selected.kind}</div>}
-                {selected.era && <div className="mt-1 text-xs text-zinc-500">era: {selected.era}</div>}
+                {selected.source && (
+                  <div className="mt-2 text-xs text-zinc-500">source: {selected.source}</div>
+                )}
+                {selected.kind && (
+                  <div className="mt-1 text-xs text-zinc-500">kind: {selected.kind}</div>
+                )}
+                {selected.era && (
+                  <div className="mt-1 text-xs text-zinc-500">era: {selected.era}</div>
+                )}
 
                 {selected.tags && selected.tags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
@@ -786,12 +841,16 @@ export default function GraphClient() {
                       {selected.content}
                     </ReactMarkdown>
                   </div>
-                  {selected.sourcePath && <div className="text-xs text-zinc-500 break-all">{selected.sourcePath}</div>}
+                  {selected.sourcePath && (
+                    <div className="text-xs text-zinc-500 break-all">{selected.sourcePath}</div>
+                  )}
                 </>
               )}
 
               <div>
-                <div className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Neighbors</div>
+                <div className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                  Neighbors
+                </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {[...(adjacency.get(selected.id) ?? [])].slice(0, 30).map((id) => {
                     const n = filteredGraph?.nodes.find((x) => x.id === id);
