@@ -6,6 +6,8 @@ export function useZoomPan(svgRef: React.RefObject<SVGSVGElement | null>) {
   const zoomRef = useRef<ReturnType<typeof zoom<SVGSVGElement, unknown>> | null>(null);
   const zoomSelectionRef = useRef<any>(null);
   const lastTapRef = useRef<{ t: number; x: number; y: number } | null>(null);
+  const isPinchingRef = useRef(false);
+  const pinchTimerRef = useRef<number | null>(null);
 
   const [transform, setTransform] = useState<ZoomTransform>(() => zoomIdentity);
 
@@ -17,6 +19,20 @@ export function useZoomPan(svgRef: React.RefObject<SVGSVGElement | null>) {
     const z = zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.2, 6])
       .on('zoom', (event) => {
+        // Detect pinch (multi-touch). We use this to prevent node-tap from opening details.
+        const se: any = event.sourceEvent;
+        const touches = se?.touches;
+        if (touches && touches.length >= 2) {
+          isPinchingRef.current = true;
+          if (pinchTimerRef.current) {
+            window.clearTimeout(pinchTimerRef.current);
+          }
+          pinchTimerRef.current = window.setTimeout(() => {
+            isPinchingRef.current = false;
+            pinchTimerRef.current = null;
+          }, 180);
+        }
+
         cancelAnimationFrame(raf);
         raf = requestAnimationFrame(() => setTransform(event.transform));
       });
@@ -37,6 +53,11 @@ export function useZoomPan(svgRef: React.RefObject<SVGSVGElement | null>) {
       s.on('.zoom', null);
       zoomRef.current = null;
       zoomSelectionRef.current = null;
+      if (pinchTimerRef.current) {
+        window.clearTimeout(pinchTimerRef.current);
+        pinchTimerRef.current = null;
+      }
+      isPinchingRef.current = false;
     };
   }, [svgRef]);
 
@@ -111,5 +132,6 @@ export function useZoomPan(svgRef: React.RefObject<SVGSVGElement | null>) {
     zoomInAt,
     onSvgDoubleClick,
     onSvgPointerDown,
+    isPinchingRef,
   };
 }

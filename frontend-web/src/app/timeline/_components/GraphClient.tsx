@@ -46,9 +46,20 @@ export default function GraphClient() {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Drag handling (keep simple; works alongside zoom)
-  const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const dragRef = useRef<
+    | {
+        id: string;
+        dx: number;
+        dy: number;
+        startX: number;
+        startY: number;
+        startT: number;
+        pointerType: string;
+      }
+    | null
+  >(null);
 
-  const { transform, resetView, onSvgDoubleClick, onSvgPointerDown, applyTransform } =
+  const { transform, resetView, onSvgDoubleClick, onSvgPointerDown, applyTransform, isPinchingRef } =
     useZoomPan(svgRef);
 
   const { graph, error, isInitialLoading, fetchGraph } = useGraphData(limit);
@@ -145,9 +156,17 @@ export default function GraphClient() {
     const n = simNodes.find((x) => x.id === id);
     if (!n || n.x == null || n.y == null) return;
     (e.currentTarget as any).setPointerCapture?.(e.pointerId);
-    dragRef.current = { id, dx: n.x - e.clientX, dy: n.y - e.clientY };
+    dragRef.current = {
+      id,
+      dx: n.x - e.clientX,
+      dy: n.y - e.clientY,
+      startX: e.clientX,
+      startY: e.clientY,
+      startT: Date.now(),
+      pointerType: e.pointerType,
+    };
+    // Select immediately, but only open Details on a confirmed TAP (pointerup).
     setSelectedId(id);
-    setDetailsOpen(true);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
@@ -163,9 +182,24 @@ export default function GraphClient() {
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
-    if (dragRef.current) {
+    const drag = dragRef.current;
+    if (drag) {
       dragRef.current = null;
       (e.currentTarget as any).releasePointerCapture?.(e.pointerId);
+
+      // If user is pinching/zooming, do NOT treat this as a tap.
+      if (isPinchingRef.current) {
+        return;
+      }
+
+      const dt = Date.now() - drag.startT;
+      const dx = Math.abs(e.clientX - drag.startX);
+      const dy = Math.abs(e.clientY - drag.startY);
+      const isTap = dt < 350 && dx < 10 && dy < 10;
+
+      if (isTap) {
+        setDetailsOpen(true);
+      }
     }
   };
 
