@@ -257,10 +257,14 @@ export class AppAuthController {
       return false;
     }
     const allowedEmails = process.env.ALLOWED_EMAILS;
-    if (!allowedEmails) {
-      return true; // 환경 변수 미설정 시 모든 이메일 허용
+    // IMPORTANT: treat empty string as "not set" to avoid blocking everyone.
+    if (!allowedEmails || allowedEmails.trim().length === 0) {
+      return true; // 환경 변수 미설정(또는 빈 값) 시 모든 이메일 허용
     }
-    const emailList = allowedEmails.split(',').map((e) => e.trim().toLowerCase());
+    const emailList = allowedEmails
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
     return emailList.includes(email.toLowerCase());
   }
 }
