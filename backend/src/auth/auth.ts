@@ -96,7 +96,7 @@ export const auth = betterAuth({
   },
   trustedOrigins: [
     process.env.BETTER_AUTH_URL,
-    process.env.FRONTEND_URL,
+    ...(process.env.FRONTEND_URL?.split(',').map((s) => s.trim()) ?? []),
     process.env.APP_URL,
     process.env.APP_URL?.replace('/--', ''),
     'https://appleid.apple.com',
