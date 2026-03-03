@@ -115,6 +115,9 @@ resource "aws_instance" "app" {
     # Docker Compose plugin
     dnf install -y docker-compose-plugin
 
+    # AWS CLI (for ECR login in deploy script)
+    dnf install -y awscli
+
     # Nginx + Certbot
     dnf install -y nginx
     systemctl enable --now nginx
