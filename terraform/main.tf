@@ -105,3 +105,17 @@ module "route53" {
   alb_dns_name    = module.alb.alb_dns_name
   alb_zone_id     = module.alb.alb_zone_id
 }
+
+module "ec2" {
+  count  = var.enable_ec2 ? 1 : 0
+  source = "./ec2"
+
+  app_name         = var.app_name
+  environment      = var.environment
+  vpc_id           = module.vpc.vpc_id
+  public_subnet_id = module.vpc.public_subnet_ids[0]
+
+  instance_type      = var.ec2_instance_type
+  ssh_key_name       = var.ec2_ssh_key_name
+  ssh_ingress_cidrs  = var.ec2_ssh_ingress_cidrs
+}
