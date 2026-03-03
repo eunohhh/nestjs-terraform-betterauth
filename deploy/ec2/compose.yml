@@ -1,0 +1,23 @@
+services:
+  backend:
+    image: ${ECR_REPOSITORY_URL}:${IMAGE_TAG}
+    container_name: allrecords-backend
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: allrecords-nginx
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/www:/var/www/certbot:ro
+      - ./letsencrypt:/etc/letsencrypt:ro
