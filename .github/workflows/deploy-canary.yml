@@ -59,8 +59,14 @@ jobs:
           IMAGE_TAG='${{ steps.vars.outputs.sha }}'
 
           # Build a JSON array of commands for SSM (AWS-RunShellScript expects JSON)
-          SCRIPT=$(cat <<EOF
+          SCRIPT=$(cat <<'EOF'
           set -euo pipefail
+
+          REGION="__REGION__"
+          ECR_REPO="__ECR_REPO__"
+          ECR_REGISTRY="__ECR_REGISTRY__"
+          IMAGE_TAG="__IMAGE_TAG__"
+
           cd /opt/allrecords
 
           # Ensure .env exists and contains ECR_REPOSITORY_URL + IMAGE_TAG
@@ -80,7 +86,6 @@ jobs:
           elif command -v docker-compose >/dev/null 2>&1; then
             COMPOSE_CMD="docker-compose"
           else
-            # Amazon Linux 2023
             dnf install -y docker-compose-plugin >/dev/null 2>&1 || true
             if docker compose version >/dev/null 2>&1; then
               COMPOSE_CMD="docker compose"
@@ -93,10 +98,15 @@ jobs:
           # Login to ECR using ec2-user docker config (avoid writing to /root)
           sudo -u ec2-user -H bash -lc "aws ecr get-login-password --region '${REGION}' | docker login --username AWS --password-stdin '${ECR_REGISTRY}'"
 
-          sudo -u ec2-user -H bash -lc "cd /opt/allrecords && $COMPOSE_CMD pull"
-          sudo -u ec2-user -H bash -lc "cd /opt/allrecords && $COMPOSE_CMD up -d"
+          sudo -u ec2-user -H bash -lc "cd /opt/allrecords && ${COMPOSE_CMD} pull"
+          sudo -u ec2-user -H bash -lc "cd /opt/allrecords && ${COMPOSE_CMD} up -d"
           EOF
           )
+
+          SCRIPT=${SCRIPT//__REGION__/${REGION}}
+          SCRIPT=${SCRIPT//__ECR_REPO__/${ECR_REPO}}
+          SCRIPT=${SCRIPT//__ECR_REGISTRY__/${ECR_REGISTRY}}
+          SCRIPT=${SCRIPT//__IMAGE_TAG__/${IMAGE_TAG}}
 
           CMDS_JSON=$(printf '%s\n' "$SCRIPT" | jq -R -s -c 'split("\n")[:-1]')
 
