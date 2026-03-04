@@ -57,3 +57,8 @@ node_modules/*
 *.sql
 
 eas.json
+
+# AWS credentials
+*.pem
+
+/keys
