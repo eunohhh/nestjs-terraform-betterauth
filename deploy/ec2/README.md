@@ -1,15 +1,22 @@
-# EC2 deployment (Docker Compose + Nginx + Let's Encrypt)
+# EC2 deployment (Docker Compose + host Nginx + Let's Encrypt)
 
 This folder contains templates for running the backend on a single EC2 instance.
+
+Recommended setup:
+- Backend runs as a Docker container on `127.0.0.1:3000`
+- Host Nginx (systemd service) terminates HTTP/HTTPS on ports 80/443
+- Let's Encrypt is managed by `certbot --nginx`
 
 ## Layout on the EC2 instance
 
 Recommended path:
 
 - `/opt/allrecords/compose.yml`
-- `/opt/allrecords/.env` (NOT committed)
-- `/opt/allrecords/nginx/conf.d/api.conf`
-- `/opt/allrecords/letsencrypt/` (certs)
+- `/opt/allrecords/app.env` (application env; NOT committed)
+- `/opt/allrecords/deploy.env` (deploy-controlled vars: IMAGE_TAG, ECR_REPOSITORY_URL)
+
+Host Nginx config lives under `/etc/nginx/` (not in this repo).
+Certs live under `/etc/letsencrypt/`.
 
 ## Quickstart (manual)
 
@@ -17,20 +24,35 @@ Recommended path:
 sudo mkdir -p /opt/allrecords
 sudo chown -R ec2-user:ec2-user /opt/allrecords
 
-# copy compose + nginx config
+# copy compose
 cp deploy/ec2/compose.yml /opt/allrecords/compose.yml
-mkdir -p /opt/allrecords/nginx/conf.d
-cp deploy/ec2/nginx/conf.d/api.conf /opt/allrecords/nginx/conf.d/api.conf
 
-# create /opt/allrecords/.env with required variables
-# ECR_REPOSITORY_URL, IMAGE_TAG, DATABASE_URL, etc.
+# create env files
+touch /opt/allrecords/app.env
+touch /opt/allrecords/deploy.env
+
+# example deploy.env (usually written by GitHub Actions)
+# ECR_REPOSITORY_URL=...dkr.ecr.ap-northeast-2.amazonaws.com/eunsun-family-backend
+# IMAGE_TAG=<git-sha>
 
 cd /opt/allrecords
 docker compose up -d
 ```
 
-## Let's Encrypt
+## Host Nginx + Let's Encrypt
 
-Preferred approach: use `certbot --nginx -d <domain>` after DNS points to the instance.
+1) Install Nginx + Certbot
 
-You can also use webroot if you don't want certbot to edit configs.
+```bash
+sudo dnf install -y nginx certbot python3-certbot-nginx
+sudo systemctl enable --now nginx
+```
+
+2) Create an Nginx vhost for your domain that proxies to `http://127.0.0.1:3000`.
+
+3) Issue/renew certs:
+
+```bash
+sudo certbot --nginx -d <domain>
+sudo certbot renew --dry-run
+```
