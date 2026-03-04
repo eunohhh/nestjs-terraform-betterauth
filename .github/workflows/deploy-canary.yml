@@ -50,41 +50,47 @@ jobs:
         run: |
           set -euo pipefail
 
+          sudo apt-get update -y && sudo apt-get install -y jq
+
           INSTANCE_ID='${{ secrets.EC2_INSTANCE_ID }}'
           REGION='${{ secrets.AWS_REGION }}'
           ECR_REPO='${{ secrets.ECR_REPOSITORY_URL }}'
           ECR_REGISTRY='${{ secrets.ECR_REGISTRY }}'
           IMAGE_TAG='${{ steps.vars.outputs.sha }}'
 
-          aws ssm send-command \
-            --region "$REGION" \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name "AWS-RunShellScript" \
-            --comment "Deploy allrecords backend: $IMAGE_TAG" \
-            --parameters commands="$(cat <<'CMDS'
+          # Build a JSON array of commands for SSM (AWS-RunShellScript expects JSON)
+          SCRIPT=$(cat <<EOF
           set -euo pipefail
           cd /opt/allrecords
 
           # Ensure .env exists and contains ECR_REPOSITORY_URL + IMAGE_TAG
           if [ -f .env ]; then
-            grep -q '^ECR_REPOSITORY_URL=' .env && sed -i "s|^ECR_REPOSITORY_URL=.*|ECR_REPOSITORY_URL=$ECR_REPO|" .env || echo "ECR_REPOSITORY_URL=$ECR_REPO" >> .env
-            grep -q '^IMAGE_TAG=' .env && sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$IMAGE_TAG/" .env || echo "IMAGE_TAG=$IMAGE_TAG" >> .env
+            grep -q '^ECR_REPOSITORY_URL=' .env && sed -i "s|^ECR_REPOSITORY_URL=.*|ECR_REPOSITORY_URL=${ECR_REPO}|" .env || echo "ECR_REPOSITORY_URL=${ECR_REPO}" >> .env
+            grep -q '^IMAGE_TAG=' .env && sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${IMAGE_TAG}/" .env || echo "IMAGE_TAG=${IMAGE_TAG}" >> .env
           else
             {
-              echo "ECR_REPOSITORY_URL=$ECR_REPO"
-              echo "IMAGE_TAG=$IMAGE_TAG"
+              echo "ECR_REPOSITORY_URL=${ECR_REPO}"
+              echo "IMAGE_TAG=${IMAGE_TAG}"
             } > .env
           fi
 
-          aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+          aws ecr get-login-password --region "${REGION}" | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
 
           docker compose pull
           docker compose up -d
-          CMDS
-          )" \
+          EOF
+          )
+
+          CMDS_JSON=$(printf '%s\n' "$SCRIPT" | jq -R -s -c 'split("\n")[:-1]')
+
+          aws ssm send-command \
+            --region "$REGION" \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy allrecords backend: $IMAGE_TAG" \
+            --parameters "commands=$CMDS_JSON" \
             --output json > ssm-send-command.json
 
-          sudo apt-get update -y && sudo apt-get install -y jq
           COMMAND_ID=$(cat ssm-send-command.json | jq -r '.Command.CommandId')
           echo "SSM CommandId: $COMMAND_ID"
 
