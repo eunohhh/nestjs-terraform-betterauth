@@ -4,7 +4,8 @@ services:
     container_name: allrecords-backend
     restart: always
     env_file:
-      - .env
+      - app.env
+      - deploy.env
     ports:
       - "127.0.0.1:3000:3000"
 

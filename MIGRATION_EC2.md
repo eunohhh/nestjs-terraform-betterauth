@@ -17,3 +17,6 @@ Goal: reduce fixed costs by moving to a single EC2 instance running Docker Compo
 - Healthcheck endpoint: `GET /` (see `backend/src/app.controller.ts`)
 - Use git SHA image tags.
 - Keep Route53 / Secrets Manager / S3.
+- Separate app env from deploy env to avoid accidental edits:
+  - `/opt/allrecords/app.env`: application settings (DB/Neo4j/etc)
+  - `/opt/allrecords/deploy.env`: deploy-controlled vars (ECR_REPOSITORY_URL, IMAGE_TAG)

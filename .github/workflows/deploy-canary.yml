@@ -69,15 +69,21 @@ jobs:
 
           cd /opt/allrecords
 
-          # Ensure .env exists and contains ECR_REPOSITORY_URL + IMAGE_TAG
-          if [ -f .env ]; then
-            grep -q '^ECR_REPOSITORY_URL=' .env && sed -i "s|^ECR_REPOSITORY_URL=.*|ECR_REPOSITORY_URL=${ECR_REPO}|" .env || echo "ECR_REPOSITORY_URL=${ECR_REPO}" >> .env
-            grep -q '^IMAGE_TAG=' .env && sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${IMAGE_TAG}/" .env || echo "IMAGE_TAG=${IMAGE_TAG}" >> .env
+          # Ensure deploy.env exists and contains only deploy-controlled vars
+          if [ -f deploy.env ]; then
+            grep -q '^ECR_REPOSITORY_URL=' deploy.env && sed -i "s|^ECR_REPOSITORY_URL=.*|ECR_REPOSITORY_URL=${ECR_REPO}|" deploy.env || echo "ECR_REPOSITORY_URL=${ECR_REPO}" >> deploy.env
+            grep -q '^IMAGE_TAG=' deploy.env && sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${IMAGE_TAG}/" deploy.env || echo "IMAGE_TAG=${IMAGE_TAG}" >> deploy.env
           else
             {
               echo "ECR_REPOSITORY_URL=${ECR_REPO}"
               echo "IMAGE_TAG=${IMAGE_TAG}"
-            } > .env
+            } > deploy.env
+          fi
+
+          # Ensure app.env exists (must be managed manually / via secrets tooling)
+          if [ ! -f app.env ]; then
+            echo "ERROR: /opt/allrecords/app.env not found. Create it with application environment variables (DB/Neo4j/etc)." >&2
+            exit 1
           fi
 
           # Ensure docker compose is available
