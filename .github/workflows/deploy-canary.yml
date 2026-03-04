@@ -80,6 +80,13 @@ jobs:
             } > deploy.env
           fi
 
+          # docker compose variable substitution (e.g. image: ${ECR_REPOSITORY_URL}:${IMAGE_TAG})
+          # reads from .env or process env, NOT from env_file. So keep a minimal .env for interpolation.
+          {
+            echo "ECR_REPOSITORY_URL=${ECR_REPO}"
+            echo "IMAGE_TAG=${IMAGE_TAG}"
+          } > .env
+
           # Ensure app.env exists (must be managed manually / via secrets tooling)
           if [ ! -f app.env ]; then
             echo "ERROR: /opt/allrecords/app.env not found. Create it with application environment variables (DB/Neo4j/etc)." >&2
