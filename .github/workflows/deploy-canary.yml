@@ -74,10 +74,27 @@ jobs:
             } > .env
           fi
 
-          aws ecr get-login-password --region "${REGION}" | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
+          # Ensure docker compose is available
+          if docker compose version >/dev/null 2>&1; then
+            COMPOSE_CMD="docker compose"
+          elif command -v docker-compose >/dev/null 2>&1; then
+            COMPOSE_CMD="docker-compose"
+          else
+            # Amazon Linux 2023
+            dnf install -y docker-compose-plugin >/dev/null 2>&1 || true
+            if docker compose version >/dev/null 2>&1; then
+              COMPOSE_CMD="docker compose"
+            else
+              echo "ERROR: docker compose is not available (install docker-compose-plugin)" >&2
+              exit 1
+            fi
+          fi
 
-          docker compose pull
-          docker compose up -d
+          # Login to ECR using ec2-user docker config (avoid writing to /root)
+          sudo -u ec2-user -H bash -lc "aws ecr get-login-password --region '${REGION}' | docker login --username AWS --password-stdin '${ECR_REGISTRY}'"
+
+          sudo -u ec2-user -H bash -lc "cd /opt/allrecords && $COMPOSE_CMD pull"
+          sudo -u ec2-user -H bash -lc "cd /opt/allrecords && $COMPOSE_CMD up -d"
           EOF
           )
 
