@@ -94,17 +94,29 @@ jobs:
           COMMAND_ID=$(cat ssm-send-command.json | jq -r '.Command.CommandId')
           echo "SSM CommandId: $COMMAND_ID"
 
+          # Wait for completion but don't abort before we fetch stdout/stderr
+          set +e
           aws ssm wait command-executed \
             --region "$REGION" \
             --command-id "$COMMAND_ID" \
             --instance-id "$INSTANCE_ID"
+          WAIT_RC=$?
+          set -e
 
-          aws ssm get-command-invocation \
+          INVOCATION=$(aws ssm get-command-invocation \
             --region "$REGION" \
             --command-id "$COMMAND_ID" \
             --instance-id "$INSTANCE_ID" \
             --query '{Status:Status, StandardOutputContent:StandardOutputContent, StandardErrorContent:StandardErrorContent}' \
-            --output json
+            --output json)
+
+          echo "$INVOCATION" | jq .
+
+          STATUS=$(echo "$INVOCATION" | jq -r '.Status')
+          if [ "$STATUS" != "Success" ]; then
+            echo "SSM command failed (status=$STATUS, waiter_rc=$WAIT_RC)" >&2
+            exit 1
+          fi
 
       - name: Canary health check
         run: |
