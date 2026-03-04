@@ -30,7 +30,6 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Login to Amazon ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Compute image tag (git sha)
@@ -47,27 +46,59 @@ jobs:
             --push \
             .
 
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            set -euo pipefail
-            cd /opt/allrecords
+      - name: Deploy via SSM Run Command (no SSH)
+        run: |
+          set -euo pipefail
 
-            # Update IMAGE_TAG for compose
-            if [ -f .env ]; then
-              grep -q '^IMAGE_TAG=' .env && sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${{ steps.vars.outputs.sha }}/" .env || echo "IMAGE_TAG=${{ steps.vars.outputs.sha }}" >> .env
-            else
-              echo "IMAGE_TAG=${{ steps.vars.outputs.sha }}" > .env
-            fi
+          INSTANCE_ID='${{ secrets.EC2_INSTANCE_ID }}'
+          REGION='${{ secrets.AWS_REGION }}'
+          ECR_REPO='${{ secrets.ECR_REPOSITORY_URL }}'
+          ECR_REGISTRY='${{ secrets.ECR_REGISTRY }}'
+          IMAGE_TAG='${{ steps.vars.outputs.sha }}'
 
-            aws ecr get-login-password --region "${{ secrets.AWS_REGION }}" | docker login --username AWS --password-stdin "${{ secrets.ECR_REGISTRY }}"
+          aws ssm send-command \
+            --region "$REGION" \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy allrecords backend: $IMAGE_TAG" \
+            --parameters commands="$(cat <<'CMDS'
+          set -euo pipefail
+          cd /opt/allrecords
 
-            docker compose pull
-            docker compose up -d
+          # Ensure .env exists and contains ECR_REPOSITORY_URL + IMAGE_TAG
+          if [ -f .env ]; then
+            grep -q '^ECR_REPOSITORY_URL=' .env && sed -i "s|^ECR_REPOSITORY_URL=.*|ECR_REPOSITORY_URL=$ECR_REPO|" .env || echo "ECR_REPOSITORY_URL=$ECR_REPO" >> .env
+            grep -q '^IMAGE_TAG=' .env && sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$IMAGE_TAG/" .env || echo "IMAGE_TAG=$IMAGE_TAG" >> .env
+          else
+            {
+              echo "ECR_REPOSITORY_URL=$ECR_REPO"
+              echo "IMAGE_TAG=$IMAGE_TAG"
+            } > .env
+          fi
+
+          aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+
+          docker compose pull
+          docker compose up -d
+          CMDS
+          )" \
+            --output json > ssm-send-command.json
+
+          sudo apt-get update -y && sudo apt-get install -y jq
+          COMMAND_ID=$(cat ssm-send-command.json | jq -r '.Command.CommandId')
+          echo "SSM CommandId: $COMMAND_ID"
+
+          aws ssm wait command-executed \
+            --region "$REGION" \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID"
+
+          aws ssm get-command-invocation \
+            --region "$REGION" \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" \
+            --query '{Status:Status, StandardOutputContent:StandardOutputContent, StandardErrorContent:StandardErrorContent}' \
+            --output json
 
       - name: Canary health check
         run: |
