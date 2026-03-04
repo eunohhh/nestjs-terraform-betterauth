@@ -60,41 +60,18 @@ module "cloudwatch" {
   environment = var.environment
 }
 
-module "acm" {
-  source = "./acm"
+module "ec2" {
+  count  = var.enable_ec2 ? 1 : 0
+  source = "./ec2"
 
-  app_name        = var.app_name
-  environment     = var.environment
-  domain_name     = "api.${var.domain_name}"
-  route53_zone_id = aws_route53_zone.main.zone_id
-}
+  app_name         = var.app_name
+  environment      = var.environment
+  vpc_id           = module.vpc.vpc_id
+  public_subnet_id = module.vpc.public_subnet_ids[0]
 
-module "alb" {
-  source = "./alb"
-
-  app_name            = var.app_name
-  environment         = var.environment
-  vpc_id              = module.vpc.vpc_id
-  public_subnet_ids   = module.vpc.public_subnet_ids
-  acm_certificate_arn = module.acm.certificate_validation_arn
-
-  depends_on = [module.acm]
-}
-
-module "ecs" {
-  source = "./ecs"
-
-  app_name              = var.app_name
-  environment           = var.environment
-  vpc_id                = module.vpc.vpc_id
-  subnet_ids            = module.vpc.public_subnet_ids
-  alb_security_group_id = module.alb.alb_security_group_id
-  target_group_arn      = module.alb.target_group_arn
-  alb_listener_arn      = module.alb.https_listener_arn
-  ecr_repository_url    = module.ecr.repository_url
-  image_tag             = var.image_tag
-  log_group_name        = module.cloudwatch.log_group_name
-  aws_region            = var.aws_region
+  instance_type     = var.ec2_instance_type
+  ssh_key_name      = var.ec2_ssh_key_name
+  ssh_ingress_cidrs = var.ec2_ssh_ingress_cidrs
 }
 
 module "route53" {
@@ -105,18 +82,4 @@ module "route53" {
 
   # api.allrecords.me now points directly to the EC2 Elastic IP
   ec2_public_ip = module.ec2[0].public_ip
-}
-
-module "ec2" {
-  count  = var.enable_ec2 ? 1 : 0
-  source = "./ec2"
-
-  app_name         = var.app_name
-  environment      = var.environment
-  vpc_id           = module.vpc.vpc_id
-  public_subnet_id = module.vpc.public_subnet_ids[0]
-
-  instance_type      = var.ec2_instance_type
-  ssh_key_name       = var.ec2_ssh_key_name
-  ssh_ingress_cidrs  = var.ec2_ssh_ingress_cidrs
 }
