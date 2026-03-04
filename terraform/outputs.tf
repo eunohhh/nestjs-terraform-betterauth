@@ -22,3 +22,13 @@ output "ec2_instance_id" {
   description = "Instance id for the parallel EC2 stack (enable_ec2=true)"
   value       = var.enable_ec2 ? module.ec2[0].instance_id : null
 }
+
+output "ecr_repository_url" {
+  description = "ECR repository URL (for GitHub Actions / EC2 deploy)"
+  value       = module.ecr.repository_url
+}
+
+output "ecr_registry" {
+  description = "ECR registry hostname (e.g. <account>.dkr.ecr.<region>.amazonaws.com)"
+  value       = "${module.ecr.registry_id}.dkr.ecr.${var.aws_region}.amazonaws.com"
+}
