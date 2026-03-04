@@ -17,8 +17,8 @@ RUN pnpm install --frozen-lockfile
 WORKDIR /app/backend
 ENV DATABASE_URL="postgresql://user:password@localhost:5432/dummy?schema=public"
 RUN pnpm build && \
-    ls -la dist/src/ && \
-    test -f dist/src/main.js || (echo "ERROR: dist/src/main.js not found!" && exit 1)
+    ls -la dist/ && \
+    test -f dist/main.js || (echo "ERROR: dist/main.js not found!" && exit 1)
 
 # Deploy standalone package
 WORKDIR /app
@@ -53,4 +53,4 @@ ENV GIT_COMMIT=$GIT_COMMIT
 
 EXPOSE 3000
 
-CMD ["node", "dist/src/main.js"]
+CMD ["node", "dist/main.js"]
