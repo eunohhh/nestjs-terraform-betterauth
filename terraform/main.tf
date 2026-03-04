@@ -102,8 +102,9 @@ module "route53" {
 
   route53_zone_id = aws_route53_zone.main.zone_id
   domain_name     = "api.${var.domain_name}"
-  alb_dns_name    = module.alb.alb_dns_name
-  alb_zone_id     = module.alb.alb_zone_id
+
+  # api.allrecords.me now points directly to the EC2 Elastic IP
+  ec2_public_ip = module.ec2[0].public_ip
 }
 
 module "ec2" {
