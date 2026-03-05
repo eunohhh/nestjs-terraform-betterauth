@@ -9,6 +9,8 @@ async function bootstrap() {
   });
 
   app.use('/auth/app', json({ limit: '1mb' }));
+  app.use('/sign-up', json({ limit: '1mb' }));
+  app.use('/sign-in', json({ limit: '1mb' }));
   app.use('/graphql', json({ limit: '1mb' }));
 
   // GraphQL (Historian / Timeline prototype)

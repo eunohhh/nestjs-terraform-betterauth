@@ -6,6 +6,7 @@ import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AppAuthController } from './auth/app-auth.controller';
+import { EmailAuthController } from './auth/email-auth.controller';
 import { AppAuthService } from './auth/app-auth.service';
 import { AppJwtGuard } from './auth/app-jwt.guard';
 import { auth } from './auth/auth';
@@ -23,7 +24,7 @@ import { SittingModule } from './sitting/sitting.module';
     SittingModule,
     NotificationModule,
   ],
-  controllers: [AppController, AppAuthController],
+  controllers: [AppController, AppAuthController, EmailAuthController],
   providers: [
     AppService,
     AppAuthService,
