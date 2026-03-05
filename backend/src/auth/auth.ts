@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { betterAuth } from 'better-auth';
+import { APIError } from 'better-auth/api';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import pg from 'pg';
 import { PrismaClient } from '../generated/prisma/client';
@@ -38,17 +39,17 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
-  // databaseHooks: {
-  //   user: {
-  //     create: {
-  //       async before(user) {
-  //         if (!isEmailAllowed(user.email)) {
-  //           throw new APIError('FORBIDDEN', { message: 'unauthorized_email' });
-  //         }
-  //       },
-  //     },
-  //   },
-  // },
+  databaseHooks: {
+    user: {
+      create: {
+        async before(user) {
+          if (!_isEmailAllowed(user.email)) {
+            throw new APIError('FORBIDDEN', { message: 'unauthorized_email' });
+          }
+        },
+      },
+    },
+  },
   user: {
     additionalFields: {
       role: {
@@ -60,7 +61,7 @@ export const auth = betterAuth({
     },
   },
   emailAndPassword: {
-    enabled: false,
+    enabled: true,
   },
   socialProviders: {
     google: {
