@@ -36,6 +36,7 @@ const _isEmailAllowed = (email: string | null | undefined): boolean => {
 };
 
 export const auth = betterAuth({
+  basePath: '/api/auth',
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
