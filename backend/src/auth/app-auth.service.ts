@@ -168,6 +168,66 @@ export class AppAuthService {
     });
   }
 
+  /**
+   * 사용자 계정 및 관련 데이터 영구 삭제.
+   *
+   * 주의:
+   * - prisma schema에서 SittingClient -> SittingBooking 관계가 onDelete: Restrict 이라
+   *   단순 user delete(CASCADE)만으로는 사용자 관련 catsitting 데이터가 남아있을 수 있어
+   *   삭제 순서를 보장하기 위해 명시적으로 정리합니다.
+   */
+  async deleteAccount(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      // 이미 삭제된 케이스는 성공으로 처리(멱등성)
+      return { ok: true };
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const clients = await tx.sittingClient.findMany({
+        where: { userId },
+        select: { id: true },
+      });
+      const clientIds = clients.map((c) => c.id);
+
+      if (clientIds.length > 0) {
+        const bookings = await tx.sittingBooking.findMany({
+          where: { clientId: { in: clientIds } },
+          select: { id: true },
+        });
+        const bookingIds = bookings.map((b) => b.id);
+
+        if (bookingIds.length > 0) {
+          await tx.sittingBookingAuditLog.deleteMany({
+            where: { bookingId: { in: bookingIds } },
+          });
+
+          await tx.sittingCare.deleteMany({
+            where: { bookingId: { in: bookingIds } },
+          });
+
+          await tx.sittingBooking.deleteMany({
+            where: { id: { in: bookingIds } },
+          });
+        }
+
+        await tx.sittingClient.deleteMany({
+          where: { id: { in: clientIds } },
+        });
+      }
+
+      // Better Auth 테이블(Session/Account/AppLoginCode)은 relation onDelete: Cascade
+      // 이므로 user 삭제로 함께 정리됩니다.
+      await tx.user.delete({ where: { id: userId } });
+    });
+
+    return { ok: true };
+  }
+
   private async signToken(userId: string): Promise<string> {
     const secret = this.getJwtSecret();
     const nowSeconds = Math.floor(Date.now() / 1000);

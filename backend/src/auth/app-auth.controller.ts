@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Controller,
+  Delete,
   Get,
   InternalServerErrorException,
   Post,
@@ -209,6 +210,24 @@ export class AppAuthController {
     }
 
     return user;
+  }
+
+  /**
+   * App Store 심사 대응: 계정(및 사용자 데이터) 영구 삭제
+   *
+   * - 토큰 인증 필요
+   * - 프론트에서 별도 확인(재확인 팝업 등) 후 호출하는 것을 권장
+   */
+  @Delete('me')
+  @AllowAnonymous()
+  @UseGuards(AppJwtGuard)
+  async deleteMe(@Req() request: AppAuthRequest) {
+    if (!request.appUserId) {
+      throw new UnauthorizedException('Invalid token');
+    }
+
+    await this.appAuthService.deleteAccount(request.appUserId);
+    return { ok: true };
   }
 
   private getBaseUrl(request: Request) {
