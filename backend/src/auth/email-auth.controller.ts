@@ -8,6 +8,7 @@ import {
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import type { Request } from 'express';
 import { fromNodeHeaders } from 'better-auth/node';
+import { AppAuthService } from './app-auth.service';
 import { auth } from './auth';
 
 /**
@@ -18,6 +19,7 @@ import { auth } from './auth';
  */
 @Controller()
 export class EmailAuthController {
+  constructor(private readonly appAuthService: AppAuthService) {}
   @Post('/sign-up/email')
   @AllowAnonymous()
   async signUpEmail(
@@ -38,10 +40,18 @@ export class EmailAuthController {
       throw new BadRequestException('password is required');
     }
 
-    return auth.api.signUpEmail({
+    const result = await auth.api.signUpEmail({
       headers: fromNodeHeaders(request.headers),
       body: { name, email, password },
     });
+
+    // 앱은 Better Auth 세션 쿠키(token)가 아니라 App JWT(accessToken)를 사용
+    const userId = (result as any)?.user?.id as string | undefined;
+    if (!userId) {
+      throw new BadRequestException('Failed to create user');
+    }
+
+    return this.appAuthService.createAccessToken(userId);
   }
 
   @Post('/sign-in/email')
@@ -60,9 +70,16 @@ export class EmailAuthController {
       throw new BadRequestException('password is required');
     }
 
-    return auth.api.signInEmail({
+    const result = await auth.api.signInEmail({
       headers: fromNodeHeaders(request.headers),
       body: { email, password },
     });
+
+    const userId = (result as any)?.user?.id as string | undefined;
+    if (!userId) {
+      throw new BadRequestException('Invalid credentials');
+    }
+
+    return this.appAuthService.createAccessToken(userId);
   }
 }
