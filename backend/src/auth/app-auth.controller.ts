@@ -105,95 +105,13 @@ export class AppAuthController {
   @Get('login/google')
   @AllowAnonymous()
   async loginGoogle(@Req() request: Request, @Res() response: Response) {
-    const baseUrl = this.getBaseUrl(request);
-    const callbackURL = `${baseUrl}/auth/app/callback`;
-    const signInUrl = `${baseUrl}/api/auth/sign-in/social`;
-
-    const html = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Signing in...</title>
-  </head>
-  <body>
-    <p>Signing in…</p>
-    <script>
-      (function () {
-        fetch(${JSON.stringify(signInUrl)}, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'same-origin',
-          body: JSON.stringify({
-            provider: 'google',
-            callbackURL: ${JSON.stringify(callbackURL)},
-            errorCallbackURL: ${JSON.stringify(callbackURL)}
-          })
-        })
-          .then(function (res) { return res.json(); })
-          .then(function (data) {
-            if (data && data.url) {
-              window.location.href = data.url;
-              return;
-            }
-            document.body.innerText = 'Failed to start login.';
-          })
-          .catch(function () {
-            document.body.innerText = 'Failed to start login.';
-          });
-      })();
-    </script>
-  </body>
-</html>`;
-
-    return response.status(200).type('text/html').send(html);
+    return this.startSocialLogin(request, response, 'google');
   }
 
   @Get('login/apple')
   @AllowAnonymous()
   async loginApple(@Req() request: Request, @Res() response: Response) {
-    const baseUrl = this.getBaseUrl(request);
-    const callbackURL = `${baseUrl}/auth/app/callback`;
-    const signInUrl = `${baseUrl}/api/auth/sign-in/social`;
-
-    const html = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Signing in...</title>
-  </head>
-  <body>
-    <p>Signing in…</p>
-    <script>
-      (function () {
-        fetch(${JSON.stringify(signInUrl)}, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'same-origin',
-          body: JSON.stringify({
-            provider: 'apple',
-            callbackURL: ${JSON.stringify(callbackURL)},
-            errorCallbackURL: ${JSON.stringify(callbackURL)}
-          })
-        })
-          .then(function (res) { return res.json(); })
-          .then(function (data) {
-            if (data && data.url) {
-              window.location.href = data.url;
-              return;
-            }
-            document.body.innerText = 'Failed to start login.';
-          })
-          .catch(function () {
-            document.body.innerText = 'Failed to start login.';
-          });
-      })();
-    </script>
-  </body>
-</html>`;
-
-    return response.status(200).type('text/html').send(html);
+    return this.startSocialLogin(request, response, 'apple');
   }
 
   @Get('me')
@@ -238,6 +156,60 @@ export class AppAuthController {
       (request.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0] ||
       request.protocol;
     return `${protocol}://${request.get('host')}`;
+  }
+
+  /**
+   * Mobile OAuth 안정성 개선:
+   * - 기존에는 `/auth/app/login/*`에서 HTML + fetch(POST)로 `/api/auth/sign-in/social`을 호출했는데,
+   *   iOS(ASWebAuthenticationSession 계열)에서 XHR 응답의 Set-Cookie가 저장되지 않아
+   *   `/api/auth/callback/*`에서 state_mismatch가 발생할 수 있음.
+   * - 서버에서 직접 `/api/auth/sign-in/social`을 호출하고 Set-Cookie를 그대로 전달한 뒤
+   *   provider authorize URL로 302 redirect 한다.
+   */
+  private async startSocialLogin(
+    request: Request,
+    response: Response,
+    provider: 'google' | 'apple',
+  ) {
+    const baseUrl = this.getBaseUrl(request);
+    const callbackURL = `${baseUrl}/auth/app/callback`;
+    const signInUrl = `${baseUrl}/api/auth/sign-in/social`;
+
+    const upstream = await fetch(signInUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // Note: This request is server-to-server. Cookies are returned in Set-Cookie headers.
+      body: JSON.stringify({
+        provider,
+        callbackURL,
+        errorCallbackURL: callbackURL,
+      }),
+    });
+
+    // Forward Set-Cookie headers so the browser session has oauth_state before redirect.
+    const setCookies: string[] =
+      // undici / Node fetch supports getSetCookie()
+      ((upstream.headers as any).getSetCookie?.() as string[] | undefined) ??
+      (upstream.headers.get('set-cookie') ? [upstream.headers.get('set-cookie') as string] : []);
+
+    for (const cookie of setCookies) {
+      // Nest/Express supports multiple Set-Cookie via append
+      response.append('Set-Cookie', cookie);
+    }
+
+    // Prefer Location header if upstream decided to redirect.
+    const location = upstream.headers.get('location');
+    if (location) {
+      return response.redirect(location);
+    }
+
+    const data = (await upstream.json().catch(() => null)) as { url?: unknown } | null;
+    const url = data?.url;
+    if (typeof url !== 'string' || url.length === 0) {
+      throw new InternalServerErrorException('Failed to start social login');
+    }
+
+    return response.redirect(url);
   }
 
   private buildDeepLink(params: Record<string, string>) {
