@@ -62,3 +62,8 @@ eas.json
 *.pem
 
 /keys
+
+# stray local builds
+/frontend-web
+/frontend-web/
+**/.next
