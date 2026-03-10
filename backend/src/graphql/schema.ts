@@ -17,6 +17,7 @@ export const schema = createSchema({
       source: String
       kind: String
       era: String
+      year: Int
       tags: [String!]!
       people: [String!]!
     }
@@ -50,6 +51,7 @@ export const schema = createSchema({
       source: String
       kind: String
       era: String
+      year: Int
       tags: [String!]
       people: [String!]
     }
@@ -110,7 +112,8 @@ export const schema = createSchema({
         }
 
         const input = args.input;
-        const id = input.id && input.id.length > 0 ? input.id : `historian:${input.created}:${input.title}`;
+        const id =
+          input.id && input.id.length > 0 ? input.id : `historian:${input.created}:${input.title}`;
 
         const event: HistorianEvent = {
           id,
@@ -122,6 +125,7 @@ export const schema = createSchema({
           source: input.source ?? null,
           kind: (input as any).kind ?? null,
           era: (input as any).era ?? null,
+          year: typeof (input as any).year === 'number' ? (input as any).year : null,
           tags: Array.isArray((input as any).tags) ? (input as any).tags : [],
           people: Array.isArray((input as any).people) ? (input as any).people : [],
         };

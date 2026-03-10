@@ -137,7 +137,12 @@ export class NotificationService {
   }
 
   async sendPushNotifications(
-    messages: Array<{ pushToken: string; title: string; body: string; data?: Record<string, unknown> }>,
+    messages: Array<{
+      pushToken: string;
+      title: string;
+      body: string;
+      data?: Record<string, unknown>;
+    }>,
   ): Promise<ExpoPushTicket[]> {
     const validMessages: ExpoPushMessage[] = messages
       .filter((m) => Expo.isExpoPushToken(m.pushToken))
@@ -204,7 +209,9 @@ export class NotificationService {
     return {
       enabled: typeof s.enabled === 'boolean' ? s.enabled : DEFAULT_SETTINGS.enabled,
       morningAlertHour:
-        typeof s.morningAlertHour === 'number' ? s.morningAlertHour : DEFAULT_SETTINGS.morningAlertHour,
+        typeof s.morningAlertHour === 'number'
+          ? s.morningAlertHour
+          : DEFAULT_SETTINGS.morningAlertHour,
       beforeMinutes:
         typeof s.beforeMinutes === 'number' ? s.beforeMinutes : DEFAULT_SETTINGS.beforeMinutes,
     };

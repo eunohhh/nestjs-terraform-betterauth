@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { betterAuth } from 'better-auth';
-import { APIError } from 'better-auth/api';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { APIError } from 'better-auth/api';
 import pg from 'pg';
 import { PrismaClient } from '../generated/prisma/client';
 

@@ -1,13 +1,7 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Post,
-  Req,
-} from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post, Req } from '@nestjs/common';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
-import type { Request } from 'express';
 import { fromNodeHeaders } from 'better-auth/node';
+import type { Request } from 'express';
 import { AppAuthService } from './app-auth.service';
 import { auth } from './auth';
 

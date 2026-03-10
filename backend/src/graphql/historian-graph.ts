@@ -11,6 +11,7 @@ export type HistorianEvent = {
   source?: string | null;
   kind?: string | null;
   era?: string | null;
+  year?: number | null; // precise year, nullable
   tags?: string[];
   people?: string[];
 };
@@ -121,6 +122,8 @@ export async function loadHistorianEvents(opts?: {
       const fmPeople = Array.isArray(attrs.people) ? attrs.people : [];
       const fmKind = typeof attrs.kind === 'string' ? attrs.kind : undefined;
       const fmEra = typeof attrs.era === 'string' ? attrs.era : undefined;
+      const fmYearRaw = typeof attrs.year === 'string' ? attrs.year : undefined;
+      const fmYear = fmYearRaw && fmYearRaw.length > 0 ? Number.parseInt(fmYearRaw, 10) : undefined;
       const fmTheme = typeof attrs.theme === 'string' ? attrs.theme : undefined;
       const fmSource = typeof attrs.source === 'string' ? attrs.source : undefined;
 
@@ -137,6 +140,7 @@ export async function loadHistorianEvents(opts?: {
         source: fmSource ?? null,
         kind: fmKind ?? null,
         era: fmEra ?? null,
+        year: Number.isFinite(fmYear as any) ? (fmYear as number) : null,
         tags: fmTags,
         people: fmPeople,
       } satisfies HistorianEvent;

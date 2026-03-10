@@ -1,6 +1,6 @@
 import neo4j, { type Driver } from 'neo4j-driver';
-import { getNeo4jDriver, getNeo4jConfigFromEnv } from './neo4j';
 import type { GraphEdge, HistorianEvent } from './historian-graph';
+import { getNeo4jConfigFromEnv, getNeo4jDriver } from './neo4j';
 
 const EVENT_LABEL = 'HistorianEvent';
 const TOPIC_LABEL = 'Topic';
@@ -48,7 +48,7 @@ export async function ensureConstraints(): Promise<void> {
 export async function upsertHistorianGraph(input: {
   events: HistorianEvent[];
   edges: GraphEdge[];
-}): Promise<{ nodes: number; edges: number }>{
+}): Promise<{ nodes: number; edges: number }> {
   const driver = getNeo4jDriver();
   if (!driver) {
     throw new Error('Neo4j is not configured');
@@ -71,6 +71,7 @@ export async function upsertHistorianGraph(input: {
            e.source = ev.source,
            e.kind = ev.kind,
            e.era = ev.era,
+           e.year = ev.year,
            e.tags = ev.tags,
            e.people = ev.people`,
       { events },
@@ -130,7 +131,9 @@ export async function upsertHistorianGraph(input: {
   });
 }
 
-export async function readHistorianGraph(limit: number): Promise<{ nodes: HistorianEvent[]; edges: GraphEdge[] }> {
+export async function readHistorianGraph(
+  limit: number,
+): Promise<{ nodes: HistorianEvent[]; edges: GraphEdge[] }> {
   const safeLimit = Math.max(0, Math.floor(limit));
   const driver = getNeo4jDriver();
   if (!driver) {
@@ -158,6 +161,7 @@ export async function readHistorianGraph(limit: number): Promise<{ nodes: Histor
         source: e.source ?? null,
         kind: e.kind ?? null,
         era: e.era ?? null,
+        year: e.year != null ? Number(e.year) : null,
         tags: e.tags ?? [],
         people: e.people ?? [],
       };
@@ -234,6 +238,7 @@ export async function readHistorianGraph(limit: number): Promise<{ nodes: Histor
           source: null,
           kind: null,
           era: null,
+          year: null,
           tags: [],
           people: [],
         });
